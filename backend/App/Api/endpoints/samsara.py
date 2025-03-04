@@ -12,9 +12,11 @@ from App import schemas
 from App.database_module import get_db
 from auth import get_current_active_user, check_manager
 
-# Direct API key for testing
-# SAMSARA_API_KEY = os.getenv("SAMSARA_API_KEY")
-SAMSARA_API_KEY = "samsara_api_X7374IGt8UXRrbGOGhCFErfC6NGh6d"  # Using direct API key for testing
+# Get API key from environment variable
+SAMSARA_API_KEY = os.getenv("SAMSARA_API_KEY")
+# If not set in environment, log a warning
+if not SAMSARA_API_KEY:
+    logging.warning("SAMSARA_API_KEY environment variable not set. Samsara integration will not work.")
 SAMSARA_API_BASE_URL = "https://api.samsara.com"
 
 # Configure logging
