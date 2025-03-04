@@ -305,3 +305,14 @@ class ActivityLog(Base):
     
     # Relationships
     user = relationship("User", back_populates="activity_logs")
+
+# System configuration model
+class SystemConfig(Base):
+    __tablename__ = "system_config"
+    
+    config_id = Column(Integer, primary_key=True, index=True)
+    config_key = Column(String(50), unique=True, nullable=False)
+    config_value = Column(String(255), nullable=False)
+    description = Column(Text)
+    created_at = Column(DateTime, default=func.now())
+    updated_at = Column(DateTime, default=func.now(), onupdate=func.now())

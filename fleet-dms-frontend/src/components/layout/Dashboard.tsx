@@ -3,6 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/ca
 import { Tabs, TabsList, TabsTrigger } from '../../components/ui/tabs';
 import { AlertCircle, Truck, Wrench, Package, Calendar, Clock, RefreshCw } from 'lucide-react';
 import apiService from '../../services/api';
+import MaintenancePredictions from '../maintenance/MaintenancePredictions';
 
 // Define interfaces for the data
 interface DashboardStats {
@@ -286,6 +287,11 @@ const FleetDashboard = () => {
           </div>
         )}
         
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          {/* Existing cards */}
+          <MaintenancePredictions />
+        </div>
+
         <Card className="bg-white shadow col-span-1 lg:col-span-2">
           <CardHeader>
             <CardTitle className="flex items-center">

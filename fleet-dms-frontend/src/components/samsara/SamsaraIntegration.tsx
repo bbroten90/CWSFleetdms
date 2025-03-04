@@ -240,6 +240,26 @@ const SamsaraIntegration: React.FC = () => {
     }
   };
   
+  const createWorkOrderFromDiagnostic = async (code: any) => {
+    try {
+      const response = await apiService.samsara.createWorkOrderFromDiagnostic(code.code_id, {
+        description: `Repair for ${code.code} - ${code.description}`,
+        priority: code.severity === 'Critical' ? 'High' : 'Medium',
+        create_initial_task: true
+      });
+      
+      // Show success message
+      // You may want to use a toast notification library like react-toastify
+      alert(`Work order created: #${response.work_order_id}`);
+      
+      // Refresh the list of diagnostic codes
+      fetchVehicleStats(selectedVehicle!);
+    } catch (error) {
+      console.error('Error creating work order:', error);
+      alert('Failed to create work order');
+    }
+  };
+
   const closeStatsModal = () => {
     setShowStatsModal(false);
     setSelectedVehicle(null);
@@ -683,9 +703,30 @@ const SamsaraIntegration: React.FC = () => {
                       </h3>
                       <div className="space-y-2">
                         {vehicleStats.faultCodes.map((code: any, index: number) => (
-                          <div key={index} className="p-3 bg-white rounded border border-red-200">
-                            <p className="font-medium">{code.code || 'Unknown Code'}</p>
-                            <p className="text-sm text-gray-600">{code.description || 'No description available'}</p>
+                          <div key={index} className="flex items-start p-2 bg-white rounded mb-1">
+                            <AlertTriangle className="h-3 w-3 text-amber-500 mr-1 mt-0.5" />
+                            <div className="flex-1">
+                              <p className="font-medium">{code.code || 'Unknown Code'}</p>
+                              <p className="text-gray-600">{code.description || 'No description available'}</p>
+                              {code.severity && (
+                                <p className="text-xs mt-1">
+                                  <span className={`px-1.5 py-0.5 rounded ${
+                                    code.severity === 'Critical' ? 'bg-red-100 text-red-800' :
+                                    code.severity === 'High' ? 'bg-orange-100 text-orange-800' :
+                                    code.severity === 'Medium' ? 'bg-yellow-100 text-yellow-800' :
+                                    'bg-blue-100 text-blue-800'
+                                  }`}>
+                                    {code.severity}
+                                  </span>
+                                </p>
+                              )}
+                            </div>
+                            <button
+                              onClick={() => createWorkOrderFromDiagnostic(code)}
+                              className="ml-2 px-2 py-1 bg-blue-600 text-white text-xs rounded hover:bg-blue-700"
+                            >
+                              Create Work Order
+                            </button>
                           </div>
                         ))}
                       </div>

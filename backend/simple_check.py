@@ -1,4 +1,4 @@
-import os
+ut in thimport os
 from dotenv import load_dotenv
 
 # Load environment variables from .env file

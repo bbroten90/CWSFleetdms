@@ -212,6 +212,14 @@ const apiService = {
     },
   },
   
+  // Maintenance endpoints
+  maintenance: {
+    getPredictions: async (daysAhead = 30) => {
+      const response = await api.get(`/api/samsara/maintenance/predictions?days_ahead=${daysAhead}`);
+      return response.data;
+    },
+  },
+  
   // Samsara integration endpoints
   samsara: {
     getVehicles: async () => {
@@ -268,6 +276,11 @@ const apiService = {
     
     getDiagnosticCodes: async (vehicleId: string) => {
       const response = await api.get(`/api/samsara/vehicle/${vehicleId}/diagnostic-codes`);
+      return response.data;
+    },
+    
+    createWorkOrderFromDiagnostic: async (codeId: number, data: any) => {
+      const response = await api.post(`/api/samsara/diagnostic/${codeId}/create-work-order`, data);
       return response.data;
     },
   },

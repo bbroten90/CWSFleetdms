@@ -1,6 +1,7 @@
 # This goes in backend/App/Api/endpoints/samsara.py
 from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks, status
 from sqlalchemy.orm import Session
+from sqlalchemy import case
 from typing import List, Dict, Any, Optional
 import httpx
 import os
@@ -680,6 +681,260 @@ async def get_sync_status(
         "updated": updated_count,
         "details": latest_sync.details
     }
+
+# Vehicle Location History API
+@router.get("/vehicle/{vehicle_id}/locations", summary="Get vehicle location history")
+async def get_vehicle_locations(
+    vehicle_id: str,
+    start_time: str,
+    end_time: str,
+    current_user: models.User = Depends(get_current_active_user)
+):
+    """Get historical location data for a vehicle."""
+    try:
+        # Convert ISO timestamps to datetime objects
+        start_datetime = datetime.fromisoformat(start_time.replace('Z', '+00:00'))
+        end_datetime = datetime.fromisoformat(end_time.replace('Z', '+00:00'))
+        
+        # Call Samsara API for location data
+        headers = {"Authorization": f"Bearer {SAMSARA_API_KEY}"}
+        params = {
+            "vehicleId": vehicle_id,
+            "startTime": start_time,
+            "endTime": end_time
+        }
+        
+        response = await httpx.AsyncClient().get(
+            f"{SAMSARA_API_BASE_URL}/fleet/vehicles/locations/history",
+            headers=headers,
+            params=params
+        )
+        
+        if response.status_code != 200:
+            logger.error(f"Error from Samsara API: {response.text}")
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail=f"Error from Samsara API: {response.text}"
+            )
+            
+        return response.json()
+        
+    except Exception as e:
+        logger.error(f"Error getting vehicle locations: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Error getting vehicle locations: {str(e)}"
+        )
+
+@router.get("/dashboard/diagnostic-alerts", summary="Get active diagnostic alerts")
+async def get_diagnostic_alerts(
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_active_user)
+):
+    """
+    Get all active diagnostic codes with vehicle information.
+    Prioritize high severity codes.
+    """
+    # Query for unresolved diagnostic codes
+    alerts = db.query(
+        models.DiagnosticCode, 
+        models.Vehicle
+    ).join(
+        models.Vehicle,
+        models.DiagnosticCode.vehicle_id == models.Vehicle.vehicle_id
+    ).filter(
+        models.DiagnosticCode.resolved_date.is_(None),
+        models.DiagnosticCode.work_order_id.is_(None)  # Not already assigned to work order
+    ).order_by(
+        # Order by severity (High first)
+        case((models.DiagnosticCode.severity == 'Critical', 1),
+             (models.DiagnosticCode.severity == 'High', 2),
+             (models.DiagnosticCode.severity == 'Medium', 3),
+             else_=4),
+        # Then by most recent
+        models.DiagnosticCode.reported_date.desc()
+    ).limit(10).all()
+    
+    result = []
+    for code, vehicle in alerts:
+        result.append({
+            "code_id": code.code_id,
+            "vehicle_id": vehicle.vehicle_id,
+            "vehicle_name": f"{vehicle.make} {vehicle.model} ({vehicle.year})",
+            "code": code.code,
+            "description": code.description,
+            "severity": code.severity,
+            "reported_date": code.reported_date,
+            "age_days": (datetime.utcnow() - code.reported_date).days
+        })
+    
+    return result
+
+@router.post("/diagnostic/{code_id}/create-work-order", summary="Create work order from diagnostic code")
+async def create_work_order_from_diagnostic(
+    code_id: int,
+    work_order_data: schemas.WorkOrderFromDiagnostic,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(check_technician)
+):
+    """
+    Create a work order from a diagnostic code.
+    Requires technician role or higher.
+    """
+    # Get the diagnostic code
+    diagnostic = db.query(models.DiagnosticCode).filter(
+        models.DiagnosticCode.code_id == code_id
+    ).first()
+    
+    if not diagnostic:
+        raise HTTPException(status_code=404, detail="Diagnostic code not found")
+    
+    if diagnostic.work_order_id:
+        raise HTTPException(status_code=400, detail="Diagnostic code already assigned to a work order")
+    
+    # Get the vehicle
+    vehicle = db.query(models.Vehicle).filter(
+        models.Vehicle.vehicle_id == diagnostic.vehicle_id
+    ).first()
+    
+    if not vehicle:
+        raise HTTPException(status_code=404, detail="Vehicle not found")
+    
+    # Create work order
+    work_order = models.WorkOrder(
+        vehicle_id=diagnostic.vehicle_id,
+        status="Open",
+        priority=work_order_data.priority or "Medium",
+        description=work_order_data.description or f"Repair for diagnostic code {diagnostic.code}",
+        reported_issue=diagnostic.description,
+        created_by=current_user.user_id,
+        assigned_to=work_order_data.assigned_to
+    )
+    
+    db.add(work_order)
+    db.flush()  # Get work_order_id without committing
+    
+    # Link diagnostic code to work order
+    diagnostic.work_order_id = work_order.work_order_id
+    
+    # Add initial task
+    if work_order_data.create_initial_task:
+        task = models.WorkOrderTask(
+            work_order_id=work_order.work_order_id,
+            description=f"Diagnose and repair issue: {diagnostic.code} - {diagnostic.description}",
+            status="Pending",
+            estimated_hours=1.0,  # Default estimate
+            technician_id=work_order_data.assigned_to
+        )
+        db.add(task)
+    
+    # Log activity
+    activity_log = models.ActivityLog(
+        user_id=current_user.user_id,
+        action="CREATE",
+        entity_type="WORK_ORDER",
+        entity_id=work_order.work_order_id,
+        details=f"Created work order from diagnostic code: {diagnostic.code}"
+    )
+    db.add(activity_log)
+    
+    db.commit()
+    db.refresh(work_order)
+    
+    return work_order
+
+@router.get("/maintenance/predictions", summary="Get maintenance predictions")
+async def get_maintenance_predictions(
+    days_ahead: int = 30,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_active_user)
+):
+    """
+    Predict when vehicles will need maintenance based on current usage patterns.
+    """
+    # Get vehicles with maintenance schedules
+    vehicles_with_schedules = db.query(
+        models.Vehicle,
+        models.VehicleMaintenanceSchedule,
+        models.MaintenanceSchedule
+    ).filter(
+        models.Vehicle.vehicle_id == models.VehicleMaintenanceSchedule.vehicle_id,
+        models.VehicleMaintenanceSchedule.schedule_id == models.MaintenanceSchedule.schedule_id,
+        # Only active vehicles
+        models.Vehicle.status == "Active"
+    ).all()
+    
+    predictions = []
+    for vehicle, schedule, maintenance in vehicles_with_schedules:
+        prediction = {
+            "vehicle_id": vehicle.vehicle_id,
+            "vehicle_name": f"{vehicle.make} {vehicle.model} ({vehicle.year})",
+            "maintenance_id": maintenance.schedule_id,
+            "maintenance_name": maintenance.name,
+            "due_type": None,
+            "current_value": None,
+            "due_value": None,
+            "percent_remaining": None,
+            "estimated_due_date": None,
+            "days_until_due": None
+        }
+        
+        # Calculate mileage-based predictions
+        if maintenance.is_mileage_based and vehicle.mileage and schedule.next_due_mileage:
+            # Get average daily mileage (simplified version)
+            avg_daily_mileage = 100  # Default if we can't calculate
+            
+            # Get recent work orders to calculate actual usage
+            recent_work_orders = db.query(models.WorkOrder).filter(
+                models.WorkOrder.vehicle_id == vehicle.vehicle_id,
+                models.WorkOrder.status == "Completed",
+                models.WorkOrder.completed_date >= datetime.utcnow() - timedelta(days=90)
+            ).order_by(models.WorkOrder.completed_date.desc()).all()
+            
+            if len(recent_work_orders) >= 2:
+                # Calculate mileage between work orders
+                oldest_wo = recent_work_orders[-1]
+                newest_wo = recent_work_orders[0]
+                if oldest_wo.vehicle_mileage and newest_wo.vehicle_mileage:
+                    mileage_diff = newest_wo.vehicle_mileage - oldest_wo.vehicle_mileage
+                    days_diff = (newest_wo.completed_date - oldest_wo.completed_date).days
+                    if days_diff > 0:
+                        avg_daily_mileage = mileage_diff / days_diff
+            
+            # Calculate prediction
+            miles_remaining = schedule.next_due_mileage - vehicle.mileage
+            days_until_due = miles_remaining / avg_daily_mileage if avg_daily_mileage > 0 else 999
+            
+            prediction.update({
+                "due_type": "mileage",
+                "current_value": vehicle.mileage,
+                "due_value": schedule.next_due_mileage,
+                "percent_remaining": (miles_remaining / maintenance.mileage_interval) * 100 if maintenance.mileage_interval else None,
+                "estimated_due_date": (datetime.utcnow() + timedelta(days=days_until_due)).date() if days_until_due < 365 else None,
+                "days_until_due": int(days_until_due) if days_until_due < 365 else None
+            })
+        
+        # Add time-based predictions
+        elif maintenance.is_time_based and schedule.next_due_date:
+            days_until_due = (schedule.next_due_date - datetime.utcnow()).days
+            
+            prediction.update({
+                "due_type": "time",
+                "current_value": datetime.utcnow().date().isoformat(),
+                "due_value": schedule.next_due_date.date().isoformat(),
+                "percent_remaining": (days_until_due / maintenance.time_interval_days) * 100 if maintenance.time_interval_days else None,
+                "estimated_due_date": schedule.next_due_date.date(),
+                "days_until_due": days_until_due
+            })
+        
+        # Only include upcoming maintenance within requested timeframe
+        if prediction["days_until_due"] is not None and prediction["days_until_due"] <= days_ahead:
+            predictions.append(prediction)
+    
+    # Sort by soonest due
+    predictions.sort(key=lambda x: x["days_until_due"] if x["days_until_due"] is not None else 999)
+    
+    return predictions
 
 @router.post("/sync/reset", summary="Reset Samsara sync status")
 async def reset_sync_status(

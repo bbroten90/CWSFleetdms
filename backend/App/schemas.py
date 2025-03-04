@@ -445,3 +445,10 @@ class MaintenanceCompletion(BaseModel):
     technician_id: Optional[int] = None
     hours_spent: Optional[float] = None
     notes: Optional[str] = None
+
+# Work order from diagnostic schema
+class WorkOrderFromDiagnostic(BaseModel):
+    description: Optional[str] = None
+    priority: Optional[str] = None
+    assigned_to: Optional[int] = None
+    create_initial_task: bool = True
