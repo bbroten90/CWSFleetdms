@@ -12,6 +12,7 @@ from App import models
 from App.database_module import get_db, engine
 from App import schemas
 from App.Api.endpoints import vehicles, samsara, dashboard
+from dotenv import load_dotenv
 from auth import (
     authenticate_user,
     create_access_token,
@@ -19,6 +20,10 @@ from auth import (
     get_password_hash
 )
 
+# Get Samsara API key from environment
+SAMSARA_API_KEY = os.getenv("SAMSARA_API_KEY")
+if not SAMSARA_API_KEY:
+    logger.warning("SAMSARA_API_KEY environment variable not set. Samsara integration will not work.")
 
 # Create tables
 models.Base.metadata.create_all(bind=engine)

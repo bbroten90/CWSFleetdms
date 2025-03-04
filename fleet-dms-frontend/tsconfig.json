@@ -1,4 +1,16 @@
 {
+  "compilerOptions": {
+    "target": "es6",             // Set the JavaScript version for output files
+    "module": "esnext",          // Use ES modules
+    "jsx": "react",              // Needed for React JSX
+    "outDir": "./build",         // Redirect output structure to the build directory
+    "allowJs": true,             // Allow JavaScript files to be compiled
+    "noImplicitAny": false,      // Temporarily set during migration to avoid errors in JS files
+    "strict": false,             // Enable/disable strict type checking
+    "esModuleInterop": true,     // Enables import/export compatibility with Babel
+    "skipLibCheck": true,        // Skip type checking of all declaration files (*.d.ts)
+    "forceConsistentCasingInFileNames": true
+  },
   "files": [],
   "references": [
     { "path": "./tsconfig.app.json" },

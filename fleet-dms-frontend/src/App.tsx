@@ -1,9 +1,9 @@
 import { useState, useEffect, createContext, useContext } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import Layout from './components/layout/Layout';
-import Login from './components/Login';
+import Login from './components/Login.tsx';
 import Dashboard from './components/layout/Dashboard';
-import VehiclesList from './components/vehicles/VehiclesList';
+import VehiclesList from './components/vehicles/VehiclesList.tsx';
 import VehicleDetail from './components/vehicles/VehicleDetail';
 import VehicleForm from './components/vehicles/VehicleForm';
 import WorkOrdersList from './components/work-orders/WorkOrdersList';
@@ -13,6 +13,7 @@ import PartsList from './components/parts/PartsList';
 import PartForm from './components/parts/PartForm';
 import MaintenanceList from './components/maintenance/MaintenanceList';
 import MaintenanceForm from './components/maintenance/MaintenanceForm';
+import SamsaraIntegration from './components/samsara/SamsaraIntegration.tsx';
 import NotFound from './components/layout/NotFound';
 
 // Create auth context
@@ -152,6 +153,9 @@ function App() {
               <Route path=":id" element={<MaintenanceForm isEditing />} />
               <Route path="new" element={<MaintenanceForm />} />
             </Route>
+            
+            {/* Samsara Integration */}
+            <Route path="samsara" element={<SamsaraIntegration />} />
           </Route>
           
           {/* Catch all other routes */}

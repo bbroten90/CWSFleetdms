@@ -1,8 +1,8 @@
-// src/services/api.js
-import axios from 'axios';
+// src/services/api.ts
+import axios, { AxiosRequestConfig } from 'axios';
 
 // API base URL - set this in your .env file
-const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:8000';
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
 
 // Create axios instance with default config
 const api = axios.create({
@@ -44,21 +44,32 @@ api.interceptors.response.use(
 const apiService = {
   // Auth endpoints
   auth: {
-    login: async (username, password) => {
-      const formData = new FormData();
-      formData.append('username', username);
-      formData.append('password', password);
+    login: async (username: string, password: string) => {
+      // Create URLSearchParams object for proper form encoding
+      const searchParams = new URLSearchParams();
+      searchParams.append('username', username);
+      searchParams.append('password', password);
       
-      const response = await axios.post(`${API_URL}/token`, formData, {
-        headers: {
-          'Content-Type': 'application/x-www-form-urlencoded',
-        },
-      });
+      // For debugging purposes
+      console.log(`Attempting login for user: ${username}`);
+      console.log(`Login endpoint: ${API_URL}/token`);
       
-      return response.data;
+      try {
+        const response = await axios.post(`${API_URL}/token`, searchParams, {
+          headers: {
+            'Content-Type': 'application/x-www-form-urlencoded',
+          },
+        });
+        
+        console.log('Login successful');
+        return response.data;
+      } catch (error) {
+        console.error('Login error details:', error.response?.data);
+        throw error;
+      }
     },
     
-    register: async (userData) => {
+    register: async (userData: any) => {
       const response = await api.post('/register', userData);
       return response.data;
     },
@@ -94,32 +105,32 @@ const apiService = {
       return response.data;
     },
     
-    getById: async (id) => {
+    getById: async (id: string | number) => {
       const response = await api.get(`/api/vehicles/${id}`);
       return response.data;
     },
     
-    create: async (vehicleData) => {
+    create: async (vehicleData: any) => {
       const response = await api.post('/api/vehicles', vehicleData);
       return response.data;
     },
     
-    update: async (id, vehicleData) => {
+    update: async (id: string | number, vehicleData: any) => {
       const response = await api.put(`/api/vehicles/${id}`, vehicleData);
       return response.data;
     },
     
-    delete: async (id) => {
+    delete: async (id: string | number) => {
       await api.delete(`/api/vehicles/${id}`);
       return true;
     },
     
-    getWorkOrders: async (id, params = {}) => {
+    getWorkOrders: async (id: string | number, params = {}) => {
       const response = await api.get(`/api/vehicles/${id}/work-orders`, { params });
       return response.data;
     },
     
-    getMaintenance: async (id) => {
+    getMaintenance: async (id: string | number) => {
       const response = await api.get(`/api/vehicles/${id}/maintenance`);
       return response.data;
     },
@@ -132,37 +143,37 @@ const apiService = {
       return response.data;
     },
     
-    getById: async (id) => {
+    getById: async (id: string | number) => {
       const response = await api.get(`/api/work-orders/${id}`);
       return response.data;
     },
     
-    create: async (workOrderData) => {
+    create: async (workOrderData: any) => {
       const response = await api.post('/api/work-orders', workOrderData);
       return response.data;
     },
     
-    update: async (id, workOrderData) => {
+    update: async (id: string | number, workOrderData: any) => {
       const response = await api.put(`/api/work-orders/${id}`, workOrderData);
       return response.data;
     },
     
-    delete: async (id) => {
+    delete: async (id: string | number) => {
       await api.delete(`/api/work-orders/${id}`);
       return true;
     },
     
-    addTask: async (id, taskData) => {
+    addTask: async (id: string | number, taskData: any) => {
       const response = await api.post(`/api/work-orders/${id}/tasks`, taskData);
       return response.data;
     },
     
-    updateTask: async (workOrderId, taskId, taskData) => {
+    updateTask: async (workOrderId: string | number, taskId: string | number, taskData: any) => {
       const response = await api.put(`/api/work-orders/${workOrderId}/tasks/${taskId}`, taskData);
       return response.data;
     },
     
-    addPart: async (id, partData) => {
+    addPart: async (id: string | number, partData: any) => {
       const response = await api.post(`/api/work-orders/${id}/parts`, partData);
       return response.data;
     },
@@ -175,27 +186,27 @@ const apiService = {
       return response.data;
     },
     
-    getById: async (id) => {
+    getById: async (id: string | number) => {
       const response = await api.get(`/api/parts/${id}`);
       return response.data;
     },
     
-    create: async (partData) => {
+    create: async (partData: any) => {
       const response = await api.post('/api/parts', partData);
       return response.data;
     },
     
-    update: async (id, partData) => {
+    update: async (id: string | number, partData: any) => {
       const response = await api.put(`/api/parts/${id}`, partData);
       return response.data;
     },
     
-    delete: async (id) => {
+    delete: async (id: string | number) => {
       await api.delete(`/api/parts/${id}`);
       return true;
     },
     
-    adjustInventory: async (id, adjustmentData) => {
+    adjustInventory: async (id: string | number, adjustmentData: any) => {
       const response = await api.post(`/api/parts/${id}/adjust`, adjustmentData);
       return response.data;
     },

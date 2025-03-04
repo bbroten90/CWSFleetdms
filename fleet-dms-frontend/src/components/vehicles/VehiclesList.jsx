@@ -1,35 +1,53 @@
-// src/components/vehicles/VehiclesList.tsx
+// src/components/vehicles/VehiclesList.jsx
+import apiService from '@services/api';
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { Truck, Search, Filter, Plus, RefreshCw, Link as LinkIcon } from 'lucide-react';
-import apiService from '../../services/api';
+import { 
+  Truck, 
+  Search, 
+  Plus, 
+  RefreshCw, 
+  Link as LinkIcon,
+  CheckCircle,
+  Clock,
+  AlertTriangle,
+  Filter
+} from 'lucide-react';
+
+// Add this at the top of your VehiclesList.tsx file
 
 interface Vehicle {
-  vehicle_id: number;
-  vin: string;
-  make: string;
-  model: string;
-  year: number;
-  license_plate: string | null;
-  status: string;
-  mileage: number | null;
-  last_service_date: string | null;
-  department: string | null;
-  samsara_id: string | null; // Added Samsara ID field
+  vehicle_id?: number;
+  vin?: string;
+  make?: string;
+  model?: string;
+  year?: number;
+  license_plate?: string;
+  status?: string;
+  mileage?: number;
+  last_service_date?: string;
+  samsara_id?: string;
 }
 
-const VehiclesList = () => {
-  const [vehicles, setVehicles] = useState<Vehicle[]>([]);
+
+function VehiclesList() {
+  const [vehicles, setVehicles] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState(null);
   const [syncingWithSamsara, setSyncingWithSamsara] = useState(false);
-  const [syncStatus, setSyncStatus] = useState<string | null>(null);
-  
+  const [syncStatus, setSyncStatus] = useState(null);
+
   // Filtering state
   const [statusFilter, setStatusFilter] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
   const [samsaraFilter, setSamsaraFilter] = useState('');
-  
+
+  // Fetch vehicles on component mount
+  useEffect(() => {
+    fetchVehicles();
+    fetchSyncStatus();
+  }, []);
+
   const fetchVehicles = async () => {
     setLoading(true);
     try {
@@ -43,64 +61,87 @@ const VehiclesList = () => {
       setLoading(false);
     }
   };
-  
-  useEffect(() => {
-    fetchVehicles();
-  }, []);
-  
+
+  const fetchSyncStatus = async () => {
+    try {
+      const status = await apiService.samsara.getSyncStatus();
+      setSyncStatus(status);
+      setSyncingWithSamsara(status?.status === "in_progress");
+    } catch (err) {
+      console.error('Error fetching sync status:', err);
+    }
+  };
+
   // Function to sync with Samsara
   const syncWithSamsara = async () => {
     setSyncingWithSamsara(true);
-    setSyncStatus('Syncing with Samsara...');
-    
+    setSyncStatus({
+      ...syncStatus,
+      status: 'in_progress',
+      message: 'Syncing with Samsara...'
+    });
+
     try {
       // Call the Samsara sync endpoint
       const response = await apiService.samsara.sync();
-      
-      // Refresh the vehicle list after sync
-      await fetchVehicles();
-      
-      setSyncStatus(`Sync completed. ${response.message || ''}`);
-      
-      // Clear status message after 5 seconds
-      setTimeout(() => {
-        setSyncStatus(null);
-      }, 5000);
+
+      // Start checking for updates
+      checkSyncStatus();
+
     } catch (err) {
       console.error('Error syncing with Samsara:', err);
-      setSyncStatus('Error syncing with Samsara. Please try again.');
-      
-      // Clear error message after 5 seconds
-      setTimeout(() => {
-        setSyncStatus(null);
-      }, 5000);
-    } finally {
+      setSyncStatus({
+        status: 'error',
+        message: 'Error syncing with Samsara. Please try again.'
+      });
       setSyncingWithSamsara(false);
     }
   };
-  
+
+  // Check sync status periodically
+  const checkSyncStatus = async () => {
+    try {
+      const status = await apiService.samsara.getSyncStatus();
+      setSyncStatus(status);
+
+      if (status.status === "in_progress") {
+        // Check again in 3 seconds
+        setTimeout(checkSyncStatus, 3000);
+      } else {
+        // Sync completed or failed
+        setSyncingWithSamsara(false);
+
+        // Refresh vehicle list
+        fetchVehicles();
+      }
+    } catch (err) {
+      console.error('Error checking sync status:', err);
+      setSyncingWithSamsara(false);
+    }
+  };
+
   // Filter vehicles based on status, search term, and Samsara connection
   const filteredVehicles = vehicles.filter(vehicle => {
     const matchesStatus = statusFilter ? vehicle.status === statusFilter : true;
-    
+
     const matchesSearch = searchTerm
-      ? vehicle.vin.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        vehicle.make.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        vehicle.model.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        (vehicle.license_plate && vehicle.license_plate.toLowerCase().includes(searchTerm.toLowerCase()))
+      ? vehicle.vin?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      vehicle.make?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      vehicle.model?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (vehicle.license_plate && vehicle.license_plate.toLowerCase().includes(searchTerm.toLowerCase()))
       : true;
-    
-    const matchesSamsara = samsaraFilter 
-      ? (samsaraFilter === 'connected' && vehicle.samsara_id) || 
-        (samsaraFilter === 'not-connected' && !vehicle.samsara_id)
+
+    const matchesSamsara = samsaraFilter
+      ? (samsaraFilter === 'connected' && vehicle.samsara_id) ||
+      (samsaraFilter === 'not-connected' && !vehicle.samsara_id)
       : true;
-      
+
     return matchesStatus && matchesSearch && matchesSamsara;
   });
-  
+
   // Get status badge style
-  const getStatusColor = (status: string) => {
-    switch(status) {
+  const getStatusColor = (status) => {
+    switch (status) {
       case 'Active':
         return 'bg-green-100 text-green-800';
       case 'Out-of-service':
@@ -111,26 +152,24 @@ const VehiclesList = () => {
         return 'bg-gray-100 text-gray-800';
     }
   };
-  
+
   return (
     <div className="p-6">
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-2xl font-bold">Fleet Vehicles</h1>
         <div className="flex space-x-2">
-          <button 
+          <button
             onClick={syncWithSamsara}
             disabled={syncingWithSamsara}
-            className={`flex items-center px-4 py-2 rounded ${
-              syncingWithSamsara 
-                ? 'bg-gray-300 text-gray-600' 
-                : 'bg-blue-500 hover:bg-blue-600 text-white'
-            }`}
+            className={`flex items-center px-4 py-2 rounded ${syncingWithSamsara
+                ? 'bg-gray-300 text-gray-600'
+                : 'bg-blue-500 hover:bg-blue-600 text-white'}`}
           >
             <RefreshCw size={18} className={`mr-1 ${syncingWithSamsara ? 'animate-spin' : ''}`} />
             Sync with Samsara
           </button>
-          <Link 
-            to="/vehicles/new" 
+          <Link
+            to="/vehicles/new"
             className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded flex items-center"
           >
             <Plus size={18} className="mr-1" />
@@ -138,14 +177,30 @@ const VehiclesList = () => {
           </Link>
         </div>
       </div>
-      
+
       {/* Sync status message */}
       {syncStatus && (
-        <div className="bg-blue-50 border-l-4 border-blue-500 text-blue-700 p-4 mb-4">
-          <p>{syncStatus}</p>
+        <div className={`border-l-4 p-4 mb-4 ${syncStatus.status === 'error'
+            ? 'bg-red-50 border-red-500 text-red-700'
+            : syncStatus.status === 'in_progress'
+              ? 'bg-blue-50 border-blue-500 text-blue-700'
+              : 'bg-green-50 border-green-500 text-green-700'}`}>
+          <div className="flex items-center">
+            {syncStatus.status === 'error' && <AlertTriangle className="mr-2" size={20} />}
+            {syncStatus.status === 'in_progress' && <RefreshCw className="mr-2 animate-spin" size={20} />}
+            {syncStatus.status === 'completed' && <CheckCircle className="mr-2" size={20} />}
+            <p>
+              {syncStatus.message ||
+                (syncStatus.status === 'completed'
+                  ? `Last sync: ${new Date(syncStatus.latest_sync).toLocaleString()}. ${syncStatus.created} vehicles created, ${syncStatus.updated} vehicles updated.`
+                  : syncStatus.status === 'in_progress'
+                    ? 'Syncing with Samsara...'
+                    : 'Unknown status')}
+            </p>
+          </div>
         </div>
       )}
-      
+
       {/* Search and filters */}
       <div className="bg-white shadow rounded-lg p-4 mb-6">
         <div className="flex flex-col md:flex-row gap-4">
@@ -159,11 +214,10 @@ const VehiclesList = () => {
                 placeholder="Search vehicles..."
                 className="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500"
                 value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-              />
+                onChange={(e) => setSearchTerm(e.target.value)} />
             </div>
           </div>
-          
+
           <div className="flex gap-4">
             <select
               className="block w-full py-2 px-3 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500"
@@ -175,7 +229,7 @@ const VehiclesList = () => {
               <option value="Out-of-service">Out of Service</option>
               <option value="In-repair">In Repair</option>
             </select>
-            
+
             <select
               className="block w-full py-2 px-3 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500"
               value={samsaraFilter}
@@ -188,14 +242,14 @@ const VehiclesList = () => {
           </div>
         </div>
       </div>
-      
+
       {/* Error message */}
       {error && (
         <div className="bg-red-100 border-l-4 border-red-500 text-red-700 p-4 mb-6">
           <p>{error}</p>
         </div>
       )}
-      
+
       {/* Loading state */}
       {loading ? (
         <div className="flex justify-center items-center h-64">
@@ -268,8 +322,8 @@ const VehiclesList = () => {
                         {vehicle.mileage?.toLocaleString() || 'N/A'} mi
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                        {vehicle.last_service_date 
-                          ? new Date(vehicle.last_service_date).toLocaleDateString() 
+                        {vehicle.last_service_date
+                          ? new Date(vehicle.last_service_date).toLocaleDateString()
                           : 'Never'}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm">
@@ -283,14 +337,14 @@ const VehiclesList = () => {
                         )}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                        <Link 
-                          to={`/vehicles/${vehicle.vehicle_id}`} 
+                        <Link
+                          to={`/vehicles/${vehicle.vehicle_id}`}
                           className="text-blue-600 hover:text-blue-900 mr-4"
                         >
                           View
                         </Link>
-                        <Link 
-                          to={`/vehicles/${vehicle.vehicle_id}/edit`} 
+                        <Link
+                          to={`/vehicles/${vehicle.vehicle_id}/edit`}
                           className="text-blue-600 hover:text-blue-900"
                         >
                           Edit
@@ -306,6 +360,6 @@ const VehiclesList = () => {
       )}
     </div>
   );
-};
+}
 
 export default VehiclesList;

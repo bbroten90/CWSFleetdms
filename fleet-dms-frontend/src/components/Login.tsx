@@ -1,20 +1,37 @@
-// src/components/Login.jsx
+// src/components/Login.tsx
 import React, { useState, useContext } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
-import { AuthContext } from '../App.tsx';
+import { AuthContext } from '../App';
 
-const Login = () => {
+// Define interfaces for type safety
+interface Credentials {
+  username: string;
+  password: string;
+}
+
+interface User {
+  username: string;
+  role?: string;
+}
+
+interface AuthData {
+  access_token: string;
+  token_type: string;
+  user: User;
+}
+
+const Login: React.FC = () => {
   const { login } = useContext(AuthContext);
-  const [credentials, setCredentials] = useState({
+  const [credentials, setCredentials] = useState<Credentials>({
     username: '',
     password: ''
   });
-  const [error, setError] = useState('');
-  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string>('');
+  const [isLoading, setIsLoading] = useState<boolean>(false);
   const navigate = useNavigate();
 
-  const handleChange = (e) => {
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
     setCredentials({
       ...credentials,
@@ -22,7 +39,7 @@ const Login = () => {
     });
   };
 
-  const handleSubmit = async (e) => {
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setIsLoading(true);
     setError('');
@@ -92,7 +109,7 @@ const Login = () => {
       
       // Redirect to dashboard
       navigate('/dashboard');
-    } catch (err) {
+    } catch (err: any) {
       console.error('Login error:', err);
       setError(
         err.response?.data?.detail || 
