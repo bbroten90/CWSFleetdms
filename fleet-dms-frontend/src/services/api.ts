@@ -63,7 +63,7 @@ const apiService = {
         
         console.log('Login successful');
         return response.data;
-      } catch (error) {
+      } catch (error: any) {
         console.error('Login error details:', error.response?.data);
         throw error;
       }
