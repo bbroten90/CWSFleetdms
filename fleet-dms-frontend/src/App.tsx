@@ -1,9 +1,9 @@
 import { useState, useEffect, createContext, useContext } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import Layout from './components/layout/Layout';
-import Login from './components/Login.tsx';
+import Login from './components/Login';
 import Dashboard from './components/layout/Dashboard';
-import VehiclesList from './components/vehicles/VehiclesList.tsx';
+import VehiclesList from './components/vehicles/VehiclesList';
 import VehicleDetail from './components/vehicles/VehicleDetail';
 import VehicleForm from './components/vehicles/VehicleForm';
 import WorkOrdersList from './components/work-orders/WorkOrdersList';
@@ -13,7 +13,7 @@ import PartsList from './components/parts/PartsList';
 import PartForm from './components/parts/PartForm';
 import MaintenanceList from './components/maintenance/MaintenanceList';
 import MaintenanceForm from './components/maintenance/MaintenanceForm';
-import SamsaraIntegration from './components/samsara/SamsaraIntegration.tsx';
+import SamsaraIntegration from './components/samsara/SamsaraIntegration';
 import NotFound from './components/layout/NotFound';
 
 // Create auth context
