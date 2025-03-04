@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Samsara Sync Reset Instructions</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            line-height: 1.6;
+        }
+        h1 {
+            color: #333;
+            border-bottom: 2px solid #eee;
+            padding-bottom: 10px;
+        }
+        h2 {
+            color: #444;
+            margin-top: 30px;
+        }
+        pre {
+            background-color: #f5f5f5;
+            padding: 15px;
+            border-radius: 5px;
+            overflow-x: auto;
+        }
+        code {
+            font-family: Consolas, Monaco, 'Andale Mono', monospace;
+            background-color: #f5f5f5;
+            padding: 2px 4px;
+            border-radius: 3px;
+        }
+        .note {
+            background-color: #fffde7;
+            border-left: 4px solid #ffd600;
+            padding: 15px;
+            margin: 20px 0;
+        }
+        ol li, ul li {
+            margin-bottom: 10px;
+        }
+    </style>
+</head>
+<body>
+    <h1>Samsara Sync Reset Instructions</h1>
+    
+    <p>This document provides instructions on how to reset the Samsara sync status when it gets stuck in the "in progress" state.</p>
+    
+    <div class="note">
+        <strong>Note:</strong> These instructions are for developers and administrators only. Regular users should not need to perform these steps.
+    </div>
+    
+    <h2>Option 1: Using the Reset Button in the UI</h2>
+    
+    <p>The simplest way to reset the sync status is to use the "Reset Sync" button that appears in the Samsara Integration page when a sync is in progress:</p>
+    
+    <ol>
+        <li>Log in to the application as a manager</li>
+        <li>Navigate to the Samsara Integration page</li>
+        <li>If the sync is stuck in the "in progress" state, you'll see a red "Reset Sync" button next to the "Sync with Samsara" button</li>
+        <li>Click the "Reset Sync" button to reset the sync status</li>
+    </ol>
+    
+    <h2>Option 2: Using the Reset Sync HTML Page</h2>
+    
+    <p>We've created a simple HTML page that you can use to reset the sync status:</p>
+    
+    <ol>
+        <li>Open the <code>reset_sync.html</code> file in your browser</li>
+        <li>Log in using your manager credentials</li>
+        <li>Click the "Reset Sync Status" button</li>
+    </ol>
+    
+    <h2>Option 3: Using the API Directly</h2>
+    
+    <p>If you prefer to use the API directly, you can use the following scripts:</p>
+    
+    <h3>Step 1: Get an Access Token</h3>
+    
+    <p>Run the <code>get_token.py</code> script to get an access token:</p>
+    
+    <pre><code>python get_token.py manager password123</code></pre>
+    
+    <p>This will output an access token that you can use in the next step.</p>
+    
+    <h3>Step 2: Reset the Sync Status</h3>
+    
+    <p>Run the <code>test_reset_sync.py</code> script with the access token from step 1:</p>
+    
+    <pre><code>python test_reset_sync.py YOUR_ACCESS_TOKEN</code></pre>
+    
+    <p>This will:</p>
+    <ul>
+        <li>Check the current sync status</li>
+        <li>Reset the sync status</li>
+        <li>Check the sync status again to verify it was reset</li>
+    </ul>
+    
+    <h2>Option 4: Using cURL or Postman</h2>
+    
+    <p>You can also use cURL or Postman to make a direct API call:</p>
+    
+    <pre><code>curl -X POST http://localhost:8000/api/samsara/sync/reset \
+    -H "Authorization: Bearer YOUR_ACCESS_TOKEN" \
+    -H "Content-Type: application/json"</code></pre>
+    
+    <h2>Troubleshooting</h2>
+    
+    <p>If you encounter any issues with the reset process, check the following:</p>
+    
+    <ul>
+        <li>Make sure you're logged in as a manager (the reset endpoint requires manager role)</li>
+        <li>Check that the backend server is running</li>
+        <li>Check the backend logs for any error messages</li>
+    </ul>
+    
+    <div class="note">
+        <strong>Note:</strong> If the sync status is still stuck after trying these steps, you may need to restart the backend server.
+    </div>
+</body>
+</html>

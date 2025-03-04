@@ -1,6 +1,7 @@
 {
   "dependencies": {
     "@types/react": "^19.0.10",
-    "@types/react-dom": "^19.0.4"
+    "@types/react-dom": "^19.0.4",
+    "httpx": "^3.0.1"
   }
 }

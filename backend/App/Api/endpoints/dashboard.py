@@ -5,9 +5,9 @@ from sqlalchemy import func, and_, or_
 from datetime import datetime, timedelta
 from typing import List
 
-import models
-import schemas
-from database import get_db
+from App import models
+from App import schemas
+from App.database_module import get_db
 from auth import get_current_active_user
 
 router = APIRouter(

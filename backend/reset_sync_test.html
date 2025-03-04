@@ -1,0 +1,194 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Reset Samsara Sync Test</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        button {
+            padding: 10px 15px;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            margin-right: 10px;
+        }
+        button:hover {
+            background-color: #45a049;
+        }
+        #status {
+            margin-top: 20px;
+            padding: 15px;
+            border-radius: 4px;
+        }
+        .success {
+            background-color: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        .error {
+            background-color: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+        .info {
+            background-color: #d1ecf1;
+            color: #0c5460;
+            border: 1px solid #bee5eb;
+        }
+        pre {
+            background-color: #f8f9fa;
+            padding: 10px;
+            border-radius: 4px;
+            overflow-x: auto;
+        }
+    </style>
+</head>
+<body>
+    <h1>Reset Samsara Sync Test</h1>
+    <p>This page helps test the Samsara sync reset functionality.</p>
+    
+    <div>
+        <button id="loginBtn">1. Login</button>
+        <button id="checkStatusBtn" disabled>2. Check Status</button>
+        <button id="resetSyncBtn" disabled>3. Reset Sync</button>
+        <button id="checkStatusAgainBtn" disabled>4. Check Status Again</button>
+    </div>
+    
+    <div id="status" style="display: none;"></div>
+    
+    <script>
+        const API_URL = 'http://localhost:8000';
+        let token = '';
+        
+        // Status display function
+        function showStatus(message, type = 'info', data = null) {
+            const statusDiv = document.getElementById('status');
+            statusDiv.className = type;
+            
+            let content = `<p>${message}</p>`;
+            if (data) {
+                content += `<pre>${JSON.stringify(data, null, 2)}</pre>`;
+            }
+            
+            statusDiv.innerHTML = content;
+            statusDiv.style.display = 'block';
+        }
+        
+        // Login function
+        document.getElementById('loginBtn').addEventListener('click', async () => {
+            try {
+                showStatus('Logging in...', 'info');
+                
+                const formData = new URLSearchParams();
+                formData.append('username', 'manager');
+                formData.append('password', 'manager123');
+                
+                const response = await fetch(`${API_URL}/token`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/x-www-form-urlencoded'
+                    },
+                    body: formData
+                });
+                
+                if (!response.ok) {
+                    throw new Error(`Login failed: ${response.status} ${response.statusText}`);
+                }
+                
+                const data = await response.json();
+                token = data.access_token;
+                
+                showStatus('Login successful!', 'success', { token_type: data.token_type, token: token.substring(0, 10) + '...' });
+                
+                // Enable next button
+                document.getElementById('checkStatusBtn').disabled = false;
+            } catch (error) {
+                showStatus(`Error: ${error.message}`, 'error');
+            }
+        });
+        
+        // Check status function
+        document.getElementById('checkStatusBtn').addEventListener('click', async () => {
+            try {
+                showStatus('Checking sync status...', 'info');
+                
+                const response = await fetch(`${API_URL}/api/samsara/sync/status`, {
+                    method: 'GET',
+                    headers: {
+                        'Authorization': `Bearer ${token}`
+                    }
+                });
+                
+                if (!response.ok) {
+                    throw new Error(`Status check failed: ${response.status} ${response.statusText}`);
+                }
+                
+                const data = await response.json();
+                showStatus('Current sync status:', 'info', data);
+                
+                // Enable next button
+                document.getElementById('resetSyncBtn').disabled = false;
+            } catch (error) {
+                showStatus(`Error: ${error.message}`, 'error');
+            }
+        });
+        
+        // Reset sync function
+        document.getElementById('resetSyncBtn').addEventListener('click', async () => {
+            try {
+                showStatus('Resetting sync status...', 'info');
+                
+                const response = await fetch(`${API_URL}/api/samsara/sync/reset`, {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${token}`
+                    }
+                });
+                
+                if (!response.ok) {
+                    throw new Error(`Reset failed: ${response.status} ${response.statusText}`);
+                }
+                
+                const data = await response.json();
+                showStatus('Sync reset successful!', 'success', data);
+                
+                // Enable next button
+                document.getElementById('checkStatusAgainBtn').disabled = false;
+            } catch (error) {
+                showStatus(`Error: ${error.message}`, 'error');
+            }
+        });
+        
+        // Check status again function
+        document.getElementById('checkStatusAgainBtn').addEventListener('click', async () => {
+            try {
+                showStatus('Checking sync status after reset...', 'info');
+                
+                const response = await fetch(`${API_URL}/api/samsara/sync/status`, {
+                    method: 'GET',
+                    headers: {
+                        'Authorization': `Bearer ${token}`
+                    }
+                });
+                
+                if (!response.ok) {
+                    throw new Error(`Status check failed: ${response.status} ${response.statusText}`);
+                }
+                
+                const data = await response.json();
+                showStatus('Updated sync status:', 'info', data);
+            } catch (error) {
+                showStatus(`Error: ${error.message}`, 'error');
+            }
+        });
+    </script>
+</body>
+</html>

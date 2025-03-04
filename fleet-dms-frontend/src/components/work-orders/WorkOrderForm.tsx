@@ -1,14 +1,63 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate, useLocation, Link } from 'react-router-dom';
-import { ArrowLeft, Save, Plus, Trash } from 'lucide-react';
+import { ArrowLeft, Save, Plus, Trash, Search, Truck, Clock, AlertTriangle, ChevronDown, ChevronUp, MapPin, Gauge } from 'lucide-react';
+import apiService from '../../services/api';
 
-// Sample data for dropdowns
-const vehicles = [
-  { id: 1, name: 'Freightliner Cascadia (TR-1017)' },
-  { id: 2, name: 'Kenworth T680 (TR-1023)' },
-  { id: 3, name: 'Peterbilt 579 (TR-1008)' },
-  { id: 4, name: 'Volvo VNL (TR-1042)' }
-];
+// Interface for vehicle data
+interface Vehicle {
+  vehicle_id: number;
+  make: string;
+  model: string;
+  year: number;
+  vin: string;
+  license_plate?: string;
+  unit_number?: string;
+  status: string;
+  mileage?: number;
+  engine_hours?: number;
+  samsara_id?: string;
+}
+
+// Interface for parts inventory
+interface PartInventory {
+  part_id: number;
+  part_number: string;
+  name: string;
+  category?: string;
+  description?: string;
+  quantity_on_hand: number;
+  unit_cost: number;
+  location?: string;
+}
+
+// Interface for vehicle stats from Samsara
+interface VehicleStats {
+  engineStates?: { value: string } | string;
+  obdOdometerMeters?: number;
+  fuelPercents?: { value: number } | number;
+  gps?: {
+    latitude: number;
+    longitude: number;
+    speed: number;
+    heading: number;
+    reverseGeo?: {
+      formattedLocation: string;
+    };
+  };
+  faultCodes?: any[];
+  engineRpm?: { value: number } | number;
+  engineLoadPercent?: { value: number } | number;
+  engineCoolantTemperatureMilliC?: number;
+}
+
+// Interface for work order history
+interface WorkOrderHistory {
+  work_order_id: number;
+  description: string;
+  status: string;
+  created_at: string;
+  completed_date?: string;
+}
 
 const technicians = [
   { id: 1, name: 'John Smith' },
@@ -16,11 +65,12 @@ const technicians = [
   { id: 3, name: 'Sarah Lee' }
 ];
 
-const parts = [
-  { id: 1, part_number: 'EGR-123', name: 'EGR Valve', quantity_on_hand: 5, unit_cost: 120.99 },
-  { id: 2, part_number: 'BELT-456', name: 'Serpentine Belt', quantity_on_hand: 12, unit_cost: 45.50 },
-  { id: 3, part_number: 'FIL-789', name: 'Oil Filter', quantity_on_hand: 24, unit_cost: 12.99 },
-  { id: 4, part_number: 'BRK-101', name: 'Brake Pad Set', quantity_on_hand: 8, unit_cost: 85.75 }
+// Sample parts inventory data (will be replaced with API call)
+const partsInventory: PartInventory[] = [
+  { part_id: 1, part_number: 'EGR-123', name: 'EGR Valve', quantity_on_hand: 5, unit_cost: 120.99 },
+  { part_id: 2, part_number: 'BELT-456', name: 'Serpentine Belt', quantity_on_hand: 12, unit_cost: 45.50 },
+  { part_id: 3, part_number: 'FIL-789', name: 'Oil Filter', quantity_on_hand: 24, unit_cost: 12.99 },
+  { part_id: 4, part_number: 'BRK-101', name: 'Brake Pad Set', quantity_on_hand: 8, unit_cost: 85.75 }
 ];
 
 // Sample data for editing
@@ -74,6 +124,18 @@ const WorkOrderForm: React.FC<WorkOrderFormProps> = ({ isEditing = false }) => {
   const queryParams = new URLSearchParams(location.search);
   const vehicleIdFromQuery = queryParams.get('vehicleId');
   
+  // State for vehicles, vehicle stats, and work order history
+  const [vehicles, setVehicles] = useState<Vehicle[]>([]);
+  const [filteredVehicles, setFilteredVehicles] = useState<Vehicle[]>([]);
+  const [unitNumberSearch, setUnitNumberSearch] = useState('');
+  const [loadingVehicles, setLoadingVehicles] = useState(false);
+  const [vehicleStats, setVehicleStats] = useState<VehicleStats | null>(null);
+  const [loadingStats, setLoadingStats] = useState(false);
+  const [workOrderHistory, setWorkOrderHistory] = useState<WorkOrderHistory[]>([]);
+  const [loadingHistory, setLoadingHistory] = useState(false);
+  const [showVehicleStats, setShowVehicleStats] = useState(false);
+  const [showWorkOrderHistory, setShowWorkOrderHistory] = useState(false);
+  
   // Form state
   const [formData, setFormData] = useState({
     vehicle_id: vehicleIdFromQuery ? parseInt(vehicleIdFromQuery) : (isEditing ? sampleWorkOrder.vehicle_id : 0),
@@ -85,6 +147,159 @@ const WorkOrderForm: React.FC<WorkOrderFormProps> = ({ isEditing = false }) => {
     priority: isEditing ? sampleWorkOrder.priority : 'Medium',
     assigned_to: isEditing ? sampleWorkOrder.assigned_to : null
   });
+  
+  // Fetch vehicles on component mount
+  useEffect(() => {
+    fetchVehicles();
+  }, []);
+  
+  // Filter vehicles when unit number search changes
+  useEffect(() => {
+    if (unitNumberSearch.trim() === '') {
+      setFilteredVehicles(vehicles);
+    } else {
+      const filtered = vehicles.filter(vehicle => 
+        vehicle.unit_number?.toLowerCase().includes(unitNumberSearch.toLowerCase()) ||
+        vehicle.make.toLowerCase().includes(unitNumberSearch.toLowerCase()) ||
+        vehicle.model.toLowerCase().includes(unitNumberSearch.toLowerCase()) ||
+        vehicle.vin.toLowerCase().includes(unitNumberSearch.toLowerCase())
+      );
+      setFilteredVehicles(filtered);
+    }
+  }, [unitNumberSearch, vehicles]);
+  
+  // Fetch vehicles from API
+  const fetchVehicles = async () => {
+    setLoadingVehicles(true);
+    try {
+      const response = await apiService.vehicles.getAll();
+      setVehicles(response);
+      setFilteredVehicles(response);
+    } catch (error) {
+      console.error('Error fetching vehicles:', error);
+    } finally {
+      setLoadingVehicles(false);
+    }
+  };
+  
+  // Fetch vehicle stats from Samsara when vehicle is selected
+  const fetchVehicleStats = async (vehicleId: number) => {
+    const selectedVehicle = vehicles.find(v => v.vehicle_id === vehicleId);
+    if (!selectedVehicle || !selectedVehicle.samsara_id) return;
+    
+    setLoadingStats(true);
+    try {
+      // Request all available stat types for comprehensive data
+      const allTypes = [
+        "gps", 
+        "engineStates", 
+        "obdOdometerMeters", 
+        "fuelPercents", 
+        "faultCodes", 
+        "engineRpm", 
+        "engineLoadPercent", 
+        "engineCoolantTemperatureMilliC"
+      ];
+      
+      // Join types with commas for the API request
+      const types = allTypes.join(",");
+      console.log("Fetching vehicle stats for Samsara ID:", selectedVehicle.samsara_id);
+      console.log("Requesting types:", types);
+      
+      const stats = await apiService.samsara.getVehicleStats(selectedVehicle.samsara_id, types);
+      console.log("Received vehicle stats:", stats);
+      
+      // Process the stats to handle different data formats
+      const processedStats: VehicleStats = {
+        ...stats,
+        engineStates: stats.engineStates || 'unknown',
+        obdOdometerMeters: stats.obdOdometerMeters || 0,
+        fuelPercents: stats.fuelPercents || 0,
+        engineRpm: stats.engineRpm || 0,
+        engineLoadPercent: stats.engineLoadPercent || 0,
+        engineCoolantTemperatureMilliC: stats.engineCoolantTemperatureMilliC || 0,
+        faultCodes: stats.faultCodes || [],
+        gps: stats.gps || null
+      };
+      
+      setVehicleStats(processedStats);
+      
+      // Update mileage in form if available from Samsara
+      if (stats.obdOdometerMeters) {
+        const mileage = Math.round(stats.obdOdometerMeters / 1609.34);
+        // Update the vehicle's mileage in the form data
+        setFormData(prev => ({
+          ...prev,
+          mileage: mileage
+        }));
+        
+        // Also update the selected vehicle's mileage in the vehicles array
+        const updatedVehicles = [...vehicles];
+        const vehicleIndex = updatedVehicles.findIndex(v => v.vehicle_id === vehicleId);
+        if (vehicleIndex >= 0) {
+          updatedVehicles[vehicleIndex] = {
+            ...updatedVehicles[vehicleIndex],
+            mileage: mileage
+          };
+          setVehicles(updatedVehicles);
+        }
+      }
+    } catch (error) {
+      console.error('Error fetching vehicle stats:', error);
+    } finally {
+      setLoadingStats(false);
+    }
+  };
+  
+  // Add effect to refresh telematics data when the section is expanded
+  useEffect(() => {
+    if (showVehicleStats && formData.vehicle_id) {
+      fetchVehicleStats(formData.vehicle_id);
+    }
+  }, [showVehicleStats, formData.vehicle_id]);
+  
+  // Fetch work order history for selected vehicle
+  const fetchWorkOrderHistory = async (vehicleId: number) => {
+    setLoadingHistory(true);
+    try {
+      const history = await apiService.vehicles.getWorkOrders(vehicleId);
+      setWorkOrderHistory(history);
+    } catch (error) {
+      console.error('Error fetching work order history:', error);
+    } finally {
+      setLoadingHistory(false);
+    }
+  };
+  
+  // Add effect to refresh telematics data when the section is expanded
+  useEffect(() => {
+    if (showVehicleStats && formData.vehicle_id) {
+      fetchVehicleStats(formData.vehicle_id);
+    }
+  }, [showVehicleStats, formData.vehicle_id]);
+  
+  // Handle vehicle selection
+  const handleVehicleChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    const vehicleId = parseInt(e.target.value);
+    
+    // Update form data
+    setFormData(prev => ({
+      ...prev,
+      vehicle_id: vehicleId
+    }));
+    
+    // Reset telematics data when changing vehicles
+    setVehicleStats(null);
+    
+    // Fetch vehicle stats and history if a vehicle is selected
+    if (vehicleId) {
+      fetchVehicleStats(vehicleId);
+      fetchWorkOrderHistory(vehicleId);
+    } else {
+      setVehicleStats(null);
+      setWorkOrderHistory([]);
+    }
+  };
   
   const [tasks, setTasks] = useState<Task[]>(
     isEditing ? sampleWorkOrder.tasks : []
@@ -263,17 +478,33 @@ const WorkOrderForm: React.FC<WorkOrderFormProps> = ({ isEditing = false }) => {
               <label htmlFor="vehicle_id" className="block text-sm font-medium text-gray-700 mb-1">
                 Vehicle <span className="text-red-500">*</span>
               </label>
+              {/* Unit Number Search */}
+              <div className="relative mb-2">
+                <div className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
+                  <Search className="h-4 w-4 text-gray-400" />
+                </div>
+                <input
+                  type="text"
+                  placeholder="Search by unit #, make, model, or VIN"
+                  value={unitNumberSearch}
+                  onChange={(e) => setUnitNumberSearch(e.target.value)}
+                  className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
+                />
+              </div>
+              
               <select
                 id="vehicle_id"
                 name="vehicle_id"
                 value={formData.vehicle_id}
-                onChange={handleChange}
+                onChange={handleVehicleChange}
                 required
                 className="w-full rounded-md border-gray-300 shadow-sm px-4 py-2 border focus:ring-blue-500 focus:border-blue-500"
               >
                 <option value="">Select Vehicle</option>
-                {vehicles.map(vehicle => (
-                  <option key={vehicle.id} value={vehicle.id}>{vehicle.name}</option>
+                {filteredVehicles.map(vehicle => (
+                  <option key={vehicle.vehicle_id} value={vehicle.vehicle_id}>
+                    {vehicle.unit_number ? `${vehicle.unit_number} - ` : ''}{vehicle.make} {vehicle.model} ({vehicle.year})
+                  </option>
                 ))}
               </select>
             </div>
@@ -401,6 +632,246 @@ const WorkOrderForm: React.FC<WorkOrderFormProps> = ({ isEditing = false }) => {
                   className="w-full rounded-md border-gray-300 shadow-sm px-4 py-2 border focus:ring-blue-500 focus:border-blue-500"
                   placeholder="Description of repairs and resolution"
                 />
+              </div>
+            )}
+            
+            {/* Vehicle Telematics Data from Samsara */}
+            {formData.vehicle_id > 0 && (
+              <div className="md:col-span-2 mt-4">
+                <div className="border rounded-md overflow-hidden">
+                  <button
+                    type="button"
+                    onClick={() => setShowVehicleStats(!showVehicleStats)}
+                    className="flex justify-between items-center w-full px-4 py-2 bg-gray-50 text-left text-sm font-medium text-gray-700 hover:bg-gray-100"
+                  >
+                    <div className="flex items-center">
+                      <Truck className="h-4 w-4 mr-2 text-blue-500" />
+                      Vehicle Telematics Data
+                      {loadingStats && <span className="ml-2 text-xs text-gray-500">(Loading...)</span>}
+                    </div>
+                    {showVehicleStats ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+                  </button>
+                  
+                  {showVehicleStats && (
+                    <div className="p-4 bg-white">
+                      {vehicleStats ? (
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                          {/* GPS Data */}
+                          {vehicleStats.gps && (
+                            <div className="border rounded p-3 bg-blue-50">
+                              <h4 className="text-sm font-medium mb-2 flex items-center">
+                                <MapPin className="h-4 w-4 mr-1 text-blue-600" />
+                                GPS Data
+                              </h4>
+                              <div className="text-xs space-y-1">
+                                <p>
+                                  <span className="font-medium">Location: </span>
+                                  {vehicleStats.gps.reverseGeo?.formattedLocation || 'Unknown'}
+                                </p>
+                                <p>
+                                  <span className="font-medium">Coordinates: </span>
+                                  {typeof vehicleStats.gps.latitude === 'number' && typeof vehicleStats.gps.longitude === 'number'
+                                    ? `${vehicleStats.gps.latitude.toFixed(6)}, ${vehicleStats.gps.longitude.toFixed(6)}`
+                                    : 'Unknown'}
+                                </p>
+                                <p>
+                                  <span className="font-medium">Speed: </span>
+                                  {typeof vehicleStats.gps.speed === 'number'
+                                    ? `${Math.round(vehicleStats.gps.speed * 2.23694)} mph`
+                                    : '0 mph'}
+                                </p>
+                                <p>
+                                  <span className="font-medium">Heading: </span>
+                                  {typeof vehicleStats.gps.heading === 'number'
+                                    ? `${vehicleStats.gps.heading}°`
+                                    : 'Unknown'}
+                                </p>
+                              </div>
+                            </div>
+                          )}
+                          
+                          {/* Engine Data */}
+                          <div className="border rounded p-3 bg-yellow-50">
+                            <h4 className="text-sm font-medium mb-2 flex items-center">
+                              <Gauge className="h-4 w-4 mr-1 text-yellow-600" />
+                              Engine Data
+                            </h4>
+                            <div className="text-xs space-y-1">
+                              <p>
+                                <span className="font-medium">Engine State: </span>
+                                {typeof vehicleStats?.engineStates === 'object' 
+                                  ? (vehicleStats?.engineStates?.value === 'on' 
+                                      ? 'Running' 
+                                      : vehicleStats?.engineStates?.value === 'off' 
+                                        ? 'Off' 
+                                        : 'Idle')
+                                  : (vehicleStats?.engineStates === 'on' 
+                                      ? 'Running' 
+                                      : vehicleStats?.engineStates === 'off' 
+                                        ? 'Off' 
+                                        : vehicleStats?.engineStates || 'Unknown')}
+                              </p>
+                              <p>
+                                <span className="font-medium">Odometer: </span>
+                                {vehicleStats?.obdOdometerMeters 
+                                  ? `${Math.round(vehicleStats.obdOdometerMeters / 1609.34).toLocaleString()} miles` 
+                                  : 'Unknown'}
+                              </p>
+                              <p>
+                                <span className="font-medium">Fuel Level: </span>
+                                {vehicleStats?.fuelPercents 
+                                  ? `${Math.round(typeof vehicleStats.fuelPercents === 'object' 
+                                      ? vehicleStats.fuelPercents.value 
+                                      : vehicleStats.fuelPercents)}%` 
+                                  : 'Unknown'}
+                              </p>
+                              {(typeof vehicleStats?.engineRpm === 'number' || 
+                                (vehicleStats?.engineRpm && typeof vehicleStats.engineRpm === 'object')) && (
+                                <p>
+                                  <span className="font-medium">RPM: </span>
+                                  {typeof vehicleStats.engineRpm === 'object' 
+                                    ? vehicleStats.engineRpm.value 
+                                    : vehicleStats.engineRpm}
+                                </p>
+                              )}
+                              {(typeof vehicleStats?.engineLoadPercent === 'number' || 
+                                (vehicleStats?.engineLoadPercent && typeof vehicleStats.engineLoadPercent === 'object')) && (
+                                <p>
+                                  <span className="font-medium">Engine Load: </span>
+                                  {typeof vehicleStats.engineLoadPercent === 'object' 
+                                    ? `${vehicleStats.engineLoadPercent.value}%` 
+                                    : `${vehicleStats.engineLoadPercent}%`}
+                                </p>
+                              )}
+                              {typeof vehicleStats?.engineCoolantTemperatureMilliC === 'number' && (
+                                <p>
+                                  <span className="font-medium">Coolant Temp: </span>
+                                  {`${((vehicleStats.engineCoolantTemperatureMilliC / 1000) * 9/5 + 32).toFixed(1)}°F`}
+                                </p>
+                              )}
+                            </div>
+                          </div>
+                          
+                          {/* Fault Codes */}
+                          {vehicleStats?.faultCodes && vehicleStats.faultCodes.length > 0 && (
+                            <div className="border rounded p-3 md:col-span-2 bg-red-50">
+                              <h4 className="text-sm font-medium mb-2 flex items-center">
+                                <AlertTriangle className="h-4 w-4 mr-1 text-red-600" />
+                                Fault Codes
+                              </h4>
+                              <div className="text-xs space-y-1">
+                                {vehicleStats.faultCodes.map((code, index) => (
+                                  <div key={index} className="flex items-start p-2 bg-white rounded mb-1">
+                                    <AlertTriangle className="h-3 w-3 text-amber-500 mr-1 mt-0.5" />
+                                    <div>
+                                      <p className="font-medium">{code.code || 'Unknown Code'}</p>
+                                      <p className="text-gray-600">{code.description || 'No description available'}</p>
+                                      {code.severity && (
+                                        <p className="text-xs mt-1">
+                                          <span className={`px-1.5 py-0.5 rounded ${
+                                            code.severity === 'Critical' ? 'bg-red-100 text-red-800' :
+                                            code.severity === 'High' ? 'bg-orange-100 text-orange-800' :
+                                            code.severity === 'Medium' ? 'bg-yellow-100 text-yellow-800' :
+                                            'bg-blue-100 text-blue-800'
+                                          }`}>
+                                            {code.severity}
+                                          </span>
+                                        </p>
+                                      )}
+                                    </div>
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      ) : (
+                        <p className="text-sm text-gray-500">
+                          {loadingStats 
+                            ? 'Loading telematics data...' 
+                            : 'No telematics data available for this vehicle.'}
+                        </p>
+                      )}
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+            
+            {/* Vehicle Work Order History */}
+            {formData.vehicle_id > 0 && (
+              <div className="md:col-span-2 mt-2">
+                <div className="border rounded-md overflow-hidden">
+                  <button
+                    type="button"
+                    onClick={() => setShowWorkOrderHistory(!showWorkOrderHistory)}
+                    className="flex justify-between items-center w-full px-4 py-2 bg-gray-50 text-left text-sm font-medium text-gray-700 hover:bg-gray-100"
+                  >
+                    <div className="flex items-center">
+                      <Clock className="h-4 w-4 mr-2 text-blue-500" />
+                      Work Order History
+                      {loadingHistory && <span className="ml-2 text-xs text-gray-500">(Loading...)</span>}
+                    </div>
+                    {showWorkOrderHistory ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+                  </button>
+                  
+                  {showWorkOrderHistory && (
+                    <div className="p-4 bg-white">
+                      {workOrderHistory.length > 0 ? (
+                        <div className="overflow-x-auto">
+                          <table className="min-w-full divide-y divide-gray-200">
+                            <thead className="bg-gray-50">
+                              <tr>
+                                <th scope="col" className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                  ID
+                                </th>
+                                <th scope="col" className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                  Description
+                                </th>
+                                <th scope="col" className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                  Status
+                                </th>
+                                <th scope="col" className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                  Date
+                                </th>
+                              </tr>
+                            </thead>
+                            <tbody className="bg-white divide-y divide-gray-200">
+                              {workOrderHistory.map((wo) => (
+                                <tr key={wo.work_order_id} className="hover:bg-gray-50">
+                                  <td className="px-4 py-2 whitespace-nowrap text-xs text-gray-900">
+                                    {wo.work_order_id}
+                                  </td>
+                                  <td className="px-4 py-2 whitespace-nowrap text-xs text-gray-900">
+                                    {wo.description}
+                                  </td>
+                                  <td className="px-4 py-2 whitespace-nowrap">
+                                    <span className={`px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${
+                                      wo.status === 'Completed' ? 'bg-green-100 text-green-800' : 
+                                      wo.status === 'In Progress' ? 'bg-yellow-100 text-yellow-800' :
+                                      'bg-blue-100 text-blue-800'
+                                    }`}>
+                                      {wo.status}
+                                    </span>
+                                  </td>
+                                  <td className="px-4 py-2 whitespace-nowrap text-xs text-gray-500">
+                                    {new Date(wo.created_at).toLocaleDateString()}
+                                  </td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
+                      ) : (
+                        <p className="text-sm text-gray-500">
+                          {loadingHistory 
+                            ? 'Loading work order history...' 
+                            : 'No previous work orders found for this vehicle.'}
+                        </p>
+                      )}
+                    </div>
+                  )}
+                </div>
               </div>
             )}
           </div>
@@ -596,7 +1067,7 @@ const WorkOrderForm: React.FC<WorkOrderFormProps> = ({ isEditing = false }) => {
                 </thead>
                 <tbody className="bg-white divide-y divide-gray-200">
                   {parts.map((part) => {
-                    const partInfo = parts.find(p => p.id === part.part_id);
+                    const partInfo = partsInventory.find(p => p.part_id === part.part_id);
                     return (
                       <tr key={part.id} className="hover:bg-gray-50">
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
@@ -647,8 +1118,8 @@ const WorkOrderForm: React.FC<WorkOrderFormProps> = ({ isEditing = false }) => {
                   className="w-full rounded-md border-gray-300 shadow-sm px-4 py-2 border focus:ring-blue-500 focus:border-blue-500"
                 >
                   <option value="0">Select Part</option>
-                  {parts.map(part => (
-                    <option key={part.id} value={part.id}>
+                  {partsInventory.map(part => (
+                    <option key={part.part_id} value={part.part_id}>
                       {part.name} ({part.part_number}) - {part.quantity_on_hand} in stock
                     </option>
                   ))}

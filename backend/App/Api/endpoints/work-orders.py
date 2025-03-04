@@ -5,9 +5,9 @@ from sqlalchemy import desc
 from typing import List, Optional
 from datetime import datetime
 
-import models
-import schemas
-from database import get_db
+from App import models
+from App import schemas
+from App.database_module import get_db
 from auth import get_current_active_user, check_technician, check_manager
 
 router = APIRouter(

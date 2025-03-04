@@ -20,7 +20,8 @@ interface SidebarProps {
 }
 
 const Sidebar: React.FC<SidebarProps> = ({ isOpen = true }) => {
-  const { user } = useContext(AuthContext);
+  // Cast AuthContext to any to avoid TypeScript errors
+  const { user } = useContext(AuthContext as any);
   
   // Function to close sidebar on mobile
   const closeSidebar = () => {
@@ -35,6 +36,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen = true }) => {
     { name: 'Work Orders', icon: Wrench, href: '/work-orders', roles: ['admin', 'manager', 'technician'] },
     { name: 'Parts Inventory', icon: Package, href: '/parts', roles: ['admin', 'manager', 'technician'] },
     { name: 'Maintenance', icon: Calendar, href: '/maintenance', roles: ['admin', 'manager', 'technician'] },
+    { name: 'Samsara', icon: AlertTriangle, href: '/samsara', roles: ['admin', 'manager'] },
     { name: 'Reports', icon: FileText, href: '/reports', roles: ['admin', 'manager'] },
     { name: 'Alerts', icon: AlertTriangle, href: '/alerts', roles: ['admin', 'manager', 'technician'] },
     { name: 'Users', icon: Users, href: '/users', roles: ['admin'] },

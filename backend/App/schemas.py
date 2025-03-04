@@ -7,6 +7,7 @@ from datetime import datetime, date
 class VehicleBase(BaseModel):
     vin: str
     samsara_id: Optional[str] = None
+    unit_number: Optional[str] = None  # Added unit_number field
     make: str
     model: str
     year: int
@@ -24,6 +25,7 @@ class VehicleCreate(VehicleBase):
 class VehicleUpdate(BaseModel):
     vin: Optional[str] = None
     samsara_id: Optional[str] = None
+    unit_number: Optional[str] = None  # Added unit_number field
     make: Optional[str] = None
     model: Optional[str] = None
     year: Optional[int] = None
@@ -53,6 +55,7 @@ class SimpleVehicle(BaseModel):
     model: str
     year: int
     vin: str
+    unit_number: Optional[str] = None  # Added unit_number field
     license_plate: Optional[str] = None
     mileage: Optional[int] = None
     engine_hours: Optional[float] = None

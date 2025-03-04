@@ -1,0 +1,240 @@
+Checking database structure...
+DATABASE_URL from environment: sqlite:///./dispatch.db
+Using SQLite database at ./dispatch.db
+Checking if database file exists at: C:\Users\bbrot\CWSFleetdms\backend\dispatch.db
+Found 15 tables in the database:
+- vehicles
+  Columns:
+    - vehicle_id (INTEGER)
+    - vin (VARCHAR(17))
+    - samsara_id (VARCHAR(50))
+    - make (VARCHAR(50))
+    - model (VARCHAR(50))
+    - year (INTEGER)
+    - license_plate (VARCHAR(20))
+    - status (VARCHAR(20))
+    - mileage (INTEGER)
+    - engine_hours (NUMERIC(10, 2))
+    - last_service_date (DATETIME)
+    - purchase_date (DATE)
+    - department (VARCHAR(50))
+    - assigned_driver_id (INTEGER)
+    - created_at (DATETIME)
+    - updated_at (DATETIME)
+    - unit_number (VARCHAR(50))
+  Row count: 54
+  Sample data (up to 5 rows):
+    Columns: vehicle_id, vin, samsara_id, make, model, year, license_plate, status, mileage, engine_hours, last_service_date, purchase_date, department, assigned_driver_id, created_at, updated_at, unit_number
+    Row: (1, '1HTMM530248100000', 'SAM0001', 'Peterbilt', '579', 2018, 'TRK-0001', 'Scheduled', 136319, 2762, '2024-12-24 09:03:43.354752', '2018-05-01', 'Long-haul', None, '2025-03-04 15:03:43', '2025-03-04 15:03:43', None)
+    Row: (2, '1HTMM224416200000', 'SAM0002', 'Kenworth', 'T680', 2021, 'TRK-0002', 'Out-of-service', 81348, 3149, '2025-02-19 09:03:43.354752', '2021-09-28', 'Long-haul', None, '2025-03-04 15:03:43', '2025-03-04 15:03:43', None)
+    Row: (3, '1HTMM342926300000', None, 'Kenworth', 'T680', 2019, 'TRK-0003', 'Active', 44184, 6211, '2024-12-27 09:03:43.354752', '2019-06-22', 'Distribution', None, '2025-03-04 15:03:43', '2025-03-04 15:03:43', None)
+    Row: (4, '1HTMM911194400000', 'SAM0004', 'Peterbilt', '579', 2019, 'TRK-0004', 'In-repair', 102229, 1128, '2025-01-21 09:03:43.354752', '2019-06-05', 'Local', None, '2025-03-04 15:03:43', '2025-03-04 15:03:43', None)
+    Row: (5, '1HTMM889554500000', 'SAM0005', 'Volvo', 'VNL', 2022, 'TRK-0005', 'Active', 52166, 7810, '2025-01-31 09:03:43.354752', '2022-12-07', 'Local', None, '2025-03-04 15:03:43', '2025-03-04 15:03:43', None)
+
+- maintenance_schedules
+  Columns:
+    - schedule_id (INTEGER)
+    - name (VARCHAR(100))
+    - description (TEXT)
+    - is_mileage_based (BOOLEAN)
+    - is_time_based (BOOLEAN)
+    - is_engine_hours_based (BOOLEAN)
+    - mileage_interval (INTEGER)
+    - time_interval_days (INTEGER)
+    - engine_hours_interval (NUMERIC(10, 2))
+    - created_at (DATETIME)
+    - updated_at (DATETIME)
+  Row count: 7
+
+- parts_inventory
+  Columns:
+    - part_id (INTEGER)
+    - part_number (VARCHAR(50))
+    - name (VARCHAR(100))
+    - description (TEXT)
+    - category (VARCHAR(50))
+    - manufacturer (VARCHAR(50))
+    - location (VARCHAR(50))
+    - unit_cost (NUMERIC(10, 2))
+    - quantity_on_hand (INTEGER)
+    - minimum_quantity (INTEGER)
+    - created_at (DATETIME)
+    - updated_at (DATETIME)
+  Row count: 10
+
+- vendors
+  Columns:
+    - vendor_id (INTEGER)
+    - name (VARCHAR(100))
+    - contact_name (VARCHAR(100))
+    - email (VARCHAR(100))
+    - phone (VARCHAR(20))
+    - address (TEXT)
+    - vendor_type (VARCHAR(50))
+    - notes (TEXT)
+    - created_at (DATETIME)
+    - updated_at (DATETIME)
+  Row count: 0
+
+- users
+  Columns:
+    - user_id (INTEGER)
+    - username (VARCHAR(50))
+    - password_hash (VARCHAR(255))
+    - first_name (VARCHAR(50))
+    - last_name (VARCHAR(50))
+    - email (VARCHAR(100))
+    - role (VARCHAR(20))
+    - is_active (BOOLEAN)
+    - last_login (DATETIME)
+    - created_at (DATETIME)
+    - updated_at (DATETIME)
+  Row count: 3
+
+- vehicle_maintenance_schedules
+  Columns:
+    - id (INTEGER)
+    - vehicle_id (INTEGER)
+    - schedule_id (INTEGER)
+    - last_performed_date (DATETIME)
+    - last_performed_mileage (INTEGER)
+    - last_performed_engine_hours (NUMERIC(10, 2))
+    - next_due_date (DATETIME)
+    - next_due_mileage (INTEGER)
+    - next_due_engine_hours (NUMERIC(10, 2))
+    - created_at (DATETIME)
+    - updated_at (DATETIME)
+  Row count: 67
+
+- technicians
+  Columns:
+    - technician_id (INTEGER)
+    - user_id (INTEGER)
+    - first_name (VARCHAR(50))
+    - last_name (VARCHAR(50))
+    - email (VARCHAR(100))
+    - phone (VARCHAR(20))
+    - specialties (TEXT)
+    - certification (TEXT)
+    - is_active (BOOLEAN)
+    - created_at (DATETIME)
+    - updated_at (DATETIME)
+  Row count: 1
+
+- vehicle_documents
+  Columns:
+    - document_id (INTEGER)
+    - vehicle_id (INTEGER)
+    - title (VARCHAR(100))
+    - document_type (VARCHAR(50))
+    - file_path (VARCHAR(255))
+    - uploaded_by (INTEGER)
+    - expiration_date (DATE)
+    - created_at (DATETIME)
+    - updated_at (DATETIME)
+  Row count: 0
+
+- purchase_orders
+  Columns:
+    - po_id (INTEGER)
+    - vendor_id (INTEGER)
+    - status (VARCHAR(20))
+    - order_date (DATETIME)
+    - expected_delivery_date (DATETIME)
+    - actual_delivery_date (DATETIME)
+    - total_amount (NUMERIC(10, 2))
+    - created_by (INTEGER)
+    - notes (TEXT)
+    - created_at (DATETIME)
+    - updated_at (DATETIME)
+  Row count: 0
+
+- activity_logs
+  Columns:
+    - log_id (INTEGER)
+    - user_id (INTEGER)
+    - action (VARCHAR(50))
+    - entity_type (VARCHAR(50))
+    - entity_id (INTEGER)
+    - details (TEXT)
+    - ip_address (VARCHAR(45))
+    - created_at (DATETIME)
+  Row count: 212
+
+- work_orders
+  Columns:
+    - work_order_id (INTEGER)
+    - vehicle_id (INTEGER)
+    - status (VARCHAR(20))
+    - priority (VARCHAR(10))
+    - description (TEXT)
+    - reported_issue (TEXT)
+    - diagnosis (TEXT)
+    - resolution (TEXT)
+    - created_by (INTEGER)
+    - assigned_to (INTEGER)
+    - start_date (DATETIME)
+    - completed_date (DATETIME)
+    - created_at (DATETIME)
+    - updated_at (DATETIME)
+  Row count: 30
+
+- purchase_order_items
+  Columns:
+    - item_id (INTEGER)
+    - po_id (INTEGER)
+    - part_id (INTEGER)
+    - quantity (INTEGER)
+    - unit_price (NUMERIC(10, 2))
+    - received_quantity (INTEGER)
+    - created_at (DATETIME)
+    - updated_at (DATETIME)
+  Row count: 0
+
+- work_order_tasks
+  Columns:
+    - task_id (INTEGER)
+    - work_order_id (INTEGER)
+    - description (TEXT)
+    - status (VARCHAR(20))
+    - estimated_hours (NUMERIC(5, 2))
+    - actual_hours (NUMERIC(5, 2))
+    - technician_id (INTEGER)
+    - completed_date (DATETIME)
+    - created_at (DATETIME)
+    - updated_at (DATETIME)
+  Row count: 89
+
+- work_order_parts
+  Columns:
+    - id (INTEGER)
+    - work_order_id (INTEGER)
+    - part_id (INTEGER)
+    - quantity (INTEGER)
+    - unit_cost (NUMERIC(10, 2))
+    - created_at (DATETIME)
+    - updated_at (DATETIME)
+  Row count: 32
+
+- diagnostic_codes
+  Columns:
+    - code_id (INTEGER)
+    - vehicle_id (INTEGER)
+    - code (VARCHAR(20))
+    - description (TEXT)
+    - severity (VARCHAR(20))
+    - reported_date (DATETIME)
+    - resolved_date (DATETIME)
+    - work_order_id (INTEGER)
+    - created_at (DATETIME)
+    - updated_at (DATETIME)
+  Row count: 107
+  Sample data (up to 5 rows):
+    Columns: code_id, vehicle_id, code, description, severity, reported_date, resolved_date, work_order_id, created_at, updated_at
+    Row: (1, 8, 'P0495', 'Oxygen Sensor Circuit Malfunction', 'Low', '2025-02-22 09:03:43.590441', None, None, '2025-03-04 15:03:43', '2025-03-04 15:03:43')
+    Row: (2, 1, 'P7512', 'Engine Control Module Fault', 'Low', '2025-02-28 09:03:43.590441', None, None, '2025-03-04 15:03:43', '2025-03-04 15:03:43')
+    Row: (3, 13, 'P5159', 'Oxygen Sensor Circuit Malfunction', 'High', '2025-02-21 09:03:43.591448', None, None, '2025-03-04 15:03:43', '2025-03-04 15:03:43')
+    Row: (4, 10, 'P3523', 'Intake Air Temperature Sensor Circuit', 'High', '2025-03-02 09:03:43.591448', None, None, '2025-03-04 15:03:43', '2025-03-04 15:03:43')
+    Row: (5, 19, 'P8503', 'Oxygen Sensor Circuit Malfunction', 'Low', '2025-02-08 09:03:43.591448', None, None, '2025-03-04 15:03:43', '2025-03-04 15:03:43')
+
+Database check completed successfully!

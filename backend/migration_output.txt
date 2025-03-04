@@ -1,0 +1,4 @@
+Running migration to add unit_number to vehicles table...
+Using SQLite database at ./dispatch.db
+SQLite error: duplicate column name: unit_number
+Migration failed. Please check the error messages above.

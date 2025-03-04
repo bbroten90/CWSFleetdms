@@ -228,6 +228,48 @@ const apiService = {
       const response = await api.get('/api/samsara/sync/status');
       return response.data;
     },
+    
+    resetSync: async () => {
+      const response = await api.post('/api/samsara/sync/reset');
+      return response.data;
+    },
+    
+    // New endpoints for enhanced telematics data
+    getVehicleStats: async (vehicleId: string, types?: string) => {
+      const params: any = {};
+      if (types) {
+        params.types = types;
+      }
+      const response = await api.get(`/api/samsara/vehicle/${vehicleId}/stats`, { params });
+      return response.data;
+    },
+    
+    getVehicleStatsFeed: async (vehicles: string, types?: string) => {
+      const params: any = { vehicles };
+      if (types) {
+        params.types = types;
+      }
+      const response = await api.get('/api/samsara/vehicles/stats/feed', { params });
+      return response.data;
+    },
+    
+    getVehicleStatsHistory: async (vehicles: string, startTime: string, endTime: string, types?: string) => {
+      const params: any = {
+        vehicles,
+        start_time: startTime,
+        end_time: endTime
+      };
+      if (types) {
+        params.types = types;
+      }
+      const response = await api.get('/api/samsara/vehicles/stats/history', { params });
+      return response.data;
+    },
+    
+    getDiagnosticCodes: async (vehicleId: string) => {
+      const response = await api.get(`/api/samsara/vehicle/${vehicleId}/diagnostic-codes`);
+      return response.data;
+    },
   },
 };
 

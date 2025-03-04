@@ -1,0 +1,21 @@
+DATABASE_URL from environment: sqlite:///./dispatch.db
+Using SQLite database at ./dispatch.db
+Found 17 columns in the vehicles table:
+- vehicle_id (INTEGER)
+- vin (VARCHAR(17))
+- samsara_id (VARCHAR(50))
+- make (VARCHAR(50))
+- model (VARCHAR(50))
+- year (INTEGER)
+- license_plate (VARCHAR(20))
+- status (VARCHAR(20))
+- mileage (INTEGER)
+- engine_hours (NUMERIC(10, 2))
+- last_service_date (DATETIME)
+- purchase_date (DATE)
+- department (VARCHAR(50))
+- assigned_driver_id (INTEGER)
+- created_at (DATETIME)
+- updated_at (DATETIME)
+- unit_number (VARCHAR(50))
+unit_number column exists: True

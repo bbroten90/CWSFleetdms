@@ -14,6 +14,7 @@ class Vehicle(Base):
     vehicle_id = Column(Integer, primary_key=True, index=True)
     vin = Column(String(17), unique=True, nullable=False)
     samsara_id = Column(String(50), unique=True, index=True)
+    unit_number = Column(String(50))  # Added unit_number field
     make = Column(String(50), nullable=False)
     model = Column(String(50), nullable=False)
     year = Column(Integer, nullable=False)

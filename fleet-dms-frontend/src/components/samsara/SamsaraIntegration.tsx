@@ -10,7 +10,12 @@ import {
   Info, 
   X,
   ChevronRight,
-  Database
+  Database,
+  MapPin,
+  Fuel,
+  Gauge,
+  Thermometer,
+  Activity
 } from 'lucide-react';
 import apiService from '../../services/api';
 
@@ -33,6 +38,25 @@ interface SamsaraVehicle {
   engineHours?: number;
 }
 
+interface VehicleStats {
+  engineStates?: { value: string } | string;
+  obdOdometerMeters?: number;
+  fuelPercents?: { value: number } | number;
+  gps?: {
+    latitude: number;
+    longitude: number;
+    speed: number;
+    heading: number;
+    reverseGeo?: {
+      formattedLocation: string;
+    };
+  };
+  faultCodes?: any[];
+  engineRpm?: { value: number } | number;
+  engineLoadPercent?: { value: number } | number;
+  engineCoolantTemperatureMilliC?: number;
+}
+
 const SamsaraIntegration: React.FC = () => {
   const [loading, setLoading] = useState<boolean>(false);
   const [syncStatus, setSyncStatus] = useState<SyncStatus | null>(null);
@@ -40,6 +64,12 @@ const SamsaraIntegration: React.FC = () => {
   const [samsaraVehicles, setSamsaraVehicles] = useState<SamsaraVehicle[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
+  
+  // Vehicle stats state
+  const [selectedVehicle, setSelectedVehicle] = useState<SamsaraVehicle | null>(null);
+  const [vehicleStats, setVehicleStats] = useState<VehicleStats | null>(null);
+  const [loadingStats, setLoadingStats] = useState<boolean>(false);
+  const [showStatsModal, setShowStatsModal] = useState<boolean>(false);
 
   // Fetch initial sync status
   useEffect(() => {
@@ -99,6 +129,123 @@ const SamsaraIntegration: React.FC = () => {
     }
   };
 
+  const resetSync = async () => {
+    setError(null);
+    
+    try {
+      // Call the reset endpoint using the API service
+      const response = await apiService.samsara.resetSync();
+      
+      // Update UI state immediately
+      setSyncInProgress(false);
+      
+      // Update the sync status with the completed status
+      setSyncStatus(prevStatus => ({
+        ...prevStatus,
+        status: "completed",
+        details: "Manually reset sync status"
+      }));
+      
+      // Show success message (not as an error)
+      const successMessage = document.createElement('div');
+      successMessage.className = 'bg-green-100 border-l-4 border-green-500 text-green-700 p-4 mb-6';
+      successMessage.innerHTML = `
+        <div class="flex items-center">
+          <svg class="h-5 w-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+          </svg>
+          <p>Sync status reset successfully. You can now use the sync functionality again.</p>
+        </div>
+      `;
+      
+      // Find the container to insert the message
+      const container = document.querySelector('.p-6');
+      if (container) {
+        // Insert after the header section
+        const header = container.querySelector('div:first-child');
+        if (header) {
+          header.insertAdjacentElement('afterend', successMessage);
+          
+          // Remove the message after 5 seconds
+          setTimeout(() => {
+            successMessage.remove();
+          }, 5000);
+        }
+      }
+      
+      // Don't fetch the status again, as we've already updated the UI state
+      // This prevents the UI from getting stuck in the "in_progress" state
+      // setTimeout(() => {
+      //   fetchSyncStatus();
+      // }, 500);
+      
+    } catch (err) {
+      console.error("Error resetting sync:", err);
+      setError("Failed to reset sync status. Please try again later.");
+    }
+  };
+
+  const fetchVehicleStats = async (vehicle: SamsaraVehicle) => {
+    setSelectedVehicle(vehicle);
+    setLoadingStats(true);
+    setVehicleStats(null);
+    setShowStatsModal(true);
+    
+    try {
+      // Samsara API restricts to 3 types per request
+      // Split the types into batches of 3
+      const allTypes = [
+        "gps", 
+        "engineStates", 
+        "obdOdometerMeters", 
+        "fuelPercents", 
+        "faultCodes", 
+        "engineRpm", 
+        "engineLoadPercent", 
+        "engineCoolantTemperatureMilliC"
+      ];
+      
+      // Our backend now handles batching, so we can just pass all types
+      const types = allTypes.join(",");
+      console.log("Fetching vehicle stats for vehicle ID:", vehicle.id);
+      console.log("Requesting types:", types);
+      
+      const stats = await apiService.samsara.getVehicleStats(vehicle.id, types);
+      console.log("Received vehicle stats:", stats);
+      
+      // Ensure we have a valid stats object
+      if (!stats) {
+        throw new Error("No stats data received from API");
+      }
+      
+      // Initialize default values for any missing properties
+      const processedStats: VehicleStats = {
+        ...stats,
+        engineStates: stats.engineStates || 'unknown',
+        obdOdometerMeters: stats.obdOdometerMeters || 0,
+        fuelPercents: stats.fuelPercents || 0,
+        engineRpm: stats.engineRpm || 0,
+        engineLoadPercent: stats.engineLoadPercent || 0,
+        engineCoolantTemperatureMilliC: stats.engineCoolantTemperatureMilliC || 0,
+        faultCodes: stats.faultCodes || [],
+        gps: stats.gps || null
+      };
+      
+      setVehicleStats(processedStats);
+    } catch (err) {
+      console.error("Error fetching vehicle stats:", err);
+      setError("Failed to fetch vehicle telematics data. Please try again later.");
+    } finally {
+      setLoadingStats(false);
+    }
+  };
+  
+  const closeStatsModal = () => {
+    setShowStatsModal(false);
+    setSelectedVehicle(null);
+    setVehicleStats(null);
+  };
+
   const formatDate = (dateString?: string): string => {
     if (!dateString) return 'Never';
     
@@ -110,6 +257,11 @@ const SamsaraIntegration: React.FC = () => {
       hour: '2-digit',
       minute: '2-digit'
     }).format(date);
+  };
+  
+  // Helper function to convert Celsius to Fahrenheit
+  const celsiusToFahrenheit = (celsius: number): number => {
+    return (celsius / 1000) * 9/5 + 32;
   };
 
   return (
@@ -142,6 +294,16 @@ const SamsaraIntegration: React.FC = () => {
             <RefreshCw className={`h-4 w-4 mr-2 ${syncInProgress ? 'animate-spin' : ''}`} />
             {syncInProgress ? 'Syncing...' : 'Sync with Samsara'}
           </button>
+          
+          {syncInProgress && (
+            <button
+              className="flex items-center px-3 py-2 rounded bg-red-600 hover:bg-red-700 text-white"
+              onClick={resetSync}
+            >
+              <AlertTriangle className="h-4 w-4 mr-2" />
+              Reset Sync
+            </button>
+          )}
         </div>
       </div>
       
@@ -302,10 +464,7 @@ const SamsaraIntegration: React.FC = () => {
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-blue-600">
                         <button 
                           className="flex items-center hover:text-blue-800"
-                          onClick={() => {
-                            // In a real implementation, this would view vehicle details
-                            console.log('View vehicle details:', vehicle);
-                          }}
+                          onClick={() => fetchVehicleStats(vehicle)}
                         >
                           <Database className="h-4 w-4 mr-1" />
                           View Data
@@ -331,6 +490,226 @@ const SamsaraIntegration: React.FC = () => {
           </div>
         )}
       </div>
+      
+      {/* Vehicle Stats Modal */}
+      {showStatsModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg shadow-xl max-w-4xl w-full max-h-[90vh] overflow-y-auto">
+            <div className="p-6">
+              <div className="flex justify-between items-center mb-4">
+                <h2 className="text-xl font-semibold">
+                  {selectedVehicle?.make} {selectedVehicle?.model} {selectedVehicle?.year} Telematics Data
+                </h2>
+                <button 
+                  className="text-gray-500 hover:text-gray-700"
+                  onClick={closeStatsModal}
+                >
+                  <X className="h-6 w-6" />
+                </button>
+              </div>
+              
+              {loadingStats ? (
+                <div className="flex justify-center items-center h-64">
+                  <RefreshCw className="h-8 w-8 text-blue-500 animate-spin" />
+                </div>
+              ) : vehicleStats ? (
+                <div className="space-y-6">
+                  {/* Basic Vehicle Info */}
+                  <div className="bg-gray-50 p-4 rounded-lg">
+                    <h3 className="text-lg font-medium mb-3">Vehicle Information</h3>
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                      <div>
+                        <span className="text-sm text-gray-500">VIN</span>
+                        <p className="font-medium">{selectedVehicle?.vin || 'N/A'}</p>
+                      </div>
+                      <div>
+                        <span className="text-sm text-gray-500">Odometer</span>
+                        <p className="font-medium">
+                          {vehicleStats.obdOdometerMeters 
+                            ? `${Math.round(vehicleStats.obdOdometerMeters / 1609.34).toLocaleString()} mi` 
+                            : 'N/A'}
+                        </p>
+                      </div>
+                      <div>
+                        <span className="text-sm text-gray-500">Engine Status</span>
+                        <p className="font-medium">
+                          {vehicleStats.engineStates 
+                            ? (typeof vehicleStats.engineStates === 'object' 
+                                ? (vehicleStats.engineStates.value === 'on' 
+                                    ? 'Running' 
+                                    : vehicleStats.engineStates.value === 'off' 
+                                      ? 'Off' 
+                                      : 'Idle')
+                                : (vehicleStats.engineStates === 'on' 
+                                    ? 'Running' 
+                                    : vehicleStats.engineStates === 'off' 
+                                      ? 'Off' 
+                                      : 'Idle'))
+                            : 'Unknown'}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                  
+                  {/* GPS Location */}
+                  {vehicleStats.gps ? (
+                    <div className="bg-blue-50 p-4 rounded-lg">
+                      <h3 className="text-lg font-medium mb-3 flex items-center">
+                        <MapPin className="h-5 w-5 mr-2 text-blue-600" />
+                        Location
+                      </h3>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                          <span className="text-sm text-gray-500">Coordinates</span>
+                          <p className="font-medium">
+                            {typeof vehicleStats.gps.latitude === 'number' && typeof vehicleStats.gps.longitude === 'number'
+                              ? `${vehicleStats.gps.latitude.toFixed(6)}, ${vehicleStats.gps.longitude.toFixed(6)}`
+                              : 'Coordinates not available'}
+                          </p>
+                        </div>
+                        <div>
+                          <span className="text-sm text-gray-500">Address</span>
+                          <p className="font-medium">
+                            {vehicleStats.gps.reverseGeo?.formattedLocation || 'No address available'}
+                          </p>
+                        </div>
+                        <div>
+                          <span className="text-sm text-gray-500">Speed</span>
+                          <p className="font-medium">
+                            {typeof vehicleStats.gps.speed === 'number'
+                              ? `${Math.round(vehicleStats.gps.speed * 2.237).toLocaleString()} mph`
+                              : '0 mph'}
+                          </p>
+                        </div>
+                        <div>
+                          <span className="text-sm text-gray-500">Heading</span>
+                          <p className="font-medium">
+                            {typeof vehicleStats.gps.heading === 'number'
+                              ? `${vehicleStats.gps.heading}°`
+                              : 'N/A'}
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="bg-blue-50 p-4 rounded-lg">
+                      <h3 className="text-lg font-medium mb-3 flex items-center">
+                        <MapPin className="h-5 w-5 mr-2 text-blue-600" />
+                        Location
+                      </h3>
+                      <p className="text-center text-gray-500 py-4">GPS data not available for this vehicle</p>
+                    </div>
+                  )}
+                  
+                  {/* Fuel Level */}
+                  <div className="bg-green-50 p-4 rounded-lg">
+                    <h3 className="text-lg font-medium mb-3 flex items-center">
+                      <Fuel className="h-5 w-5 mr-2 text-green-600" />
+                      Fuel
+                    </h3>
+                    {vehicleStats.fuelPercents ? (
+                      <div className="grid grid-cols-1 gap-4">
+                        <div>
+                          <span className="text-sm text-gray-500">Fuel Level</span>
+                          <div className="mt-1">
+                            {/* Get fuel percentage value based on type */}
+                            {(() => {
+                              const fuelLevel = typeof vehicleStats.fuelPercents === 'object' 
+                                ? vehicleStats.fuelPercents.value 
+                                : vehicleStats.fuelPercents;
+                              
+                              return (
+                                <>
+                                  <div className="w-full bg-gray-200 rounded-full h-2.5">
+                                    <div 
+                                      className="bg-green-600 h-2.5 rounded-full" 
+                                      style={{ width: `${fuelLevel}%` }}
+                                    ></div>
+                                  </div>
+                                  <p className="mt-1 font-medium">{fuelLevel}%</p>
+                                </>
+                              );
+                            })()}
+                          </div>
+                        </div>
+                      </div>
+                    ) : (
+                      <p className="text-center text-gray-500 py-4">Fuel data not available for this vehicle</p>
+                    )}
+                  </div>
+                  
+                  {/* Engine Data */}
+                  <div className="bg-yellow-50 p-4 rounded-lg">
+                    <h3 className="text-lg font-medium mb-3 flex items-center">
+                      <Gauge className="h-5 w-5 mr-2 text-yellow-600" />
+                      Engine Data
+                    </h3>
+                    {(typeof vehicleStats.engineRpm === 'number' || 
+                      typeof vehicleStats.engineLoadPercent === 'number' || 
+                      typeof vehicleStats.engineCoolantTemperatureMilliC === 'number') ? (
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        {typeof vehicleStats.engineRpm === 'number' && (
+                          <div>
+                            <span className="text-sm text-gray-500">RPM</span>
+                            <p className="font-medium">{vehicleStats.engineRpm.toLocaleString()}</p>
+                          </div>
+                        )}
+                        {typeof vehicleStats.engineLoadPercent === 'number' && (
+                          <div>
+                            <span className="text-sm text-gray-500">Engine Load</span>
+                            <p className="font-medium">{vehicleStats.engineLoadPercent}%</p>
+                          </div>
+                        )}
+                        {typeof vehicleStats.engineCoolantTemperatureMilliC === 'number' && (
+                          <div>
+                            <span className="text-sm text-gray-500">Coolant Temperature</span>
+                            <p className="font-medium">
+                              {celsiusToFahrenheit(vehicleStats.engineCoolantTemperatureMilliC).toFixed(1)}°F
+                            </p>
+                          </div>
+                        )}
+                      </div>
+                    ) : (
+                      <p className="text-center text-gray-500 py-4">Engine data not available for this vehicle</p>
+                    )}
+                  </div>
+                  
+                  {/* Fault Codes */}
+                  {vehicleStats.faultCodes && vehicleStats.faultCodes.length > 0 && (
+                    <div className="bg-red-50 p-4 rounded-lg">
+                      <h3 className="text-lg font-medium mb-3 flex items-center">
+                        <AlertTriangle className="h-5 w-5 mr-2 text-red-600" />
+                        Fault Codes
+                      </h3>
+                      <div className="space-y-2">
+                        {vehicleStats.faultCodes.map((code: any, index: number) => (
+                          <div key={index} className="p-3 bg-white rounded border border-red-200">
+                            <p className="font-medium">{code.code || 'Unknown Code'}</p>
+                            <p className="text-sm text-gray-600">{code.description || 'No description available'}</p>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <div className="text-center py-12">
+                  <p className="text-gray-500">No telematics data available for this vehicle.</p>
+                </div>
+              )}
+            </div>
+            
+            <div className="bg-gray-50 px-6 py-3 flex justify-end">
+              <button
+                className="px-4 py-2 bg-gray-200 text-gray-800 rounded hover:bg-gray-300"
+                onClick={closeStatsModal}
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

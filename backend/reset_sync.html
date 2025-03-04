@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Reset Samsara Sync</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 600px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        h1 {
+            color: #333;
+        }
+        button {
+            background-color: #4CAF50;
+            color: white;
+            padding: 10px 15px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+        }
+        button:hover {
+            background-color: #45a049;
+        }
+        #result {
+            margin-top: 20px;
+            padding: 10px;
+            border-radius: 4px;
+        }
+        .success {
+            background-color: #dff0d8;
+            color: #3c763d;
+        }
+        .error {
+            background-color: #f2dede;
+            color: #a94442;
+        }
+    </style>
+</head>
+<body>
+    <h1>Reset Samsara Sync Status</h1>
+    <p>Use this button to reset the Samsara sync status if it gets stuck.</p>
+    
+    <button id="resetButton">Reset Sync Status</button>
+    
+    <div id="result" style="display: none;"></div>
+    
+    <script>
+        document.getElementById('resetButton').addEventListener('click', async function() {
+            const resultDiv = document.getElementById('result');
+            resultDiv.className = '';
+            resultDiv.style.display = 'none';
+            
+            try {
+                // Get the token from localStorage
+                const token = localStorage.getItem('token');
+                if (!token) {
+                    throw new Error('You need to be logged in to reset the sync status');
+                }
+                
+                // Make the API request
+                const response = await fetch('http://localhost:8000/api/samsara/sync/reset', {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${token}`,
+                        'Content-Type': 'application/json'
+                    }
+                });
+                
+                const data = await response.json();
+                
+                if (response.ok) {
+                    resultDiv.textContent = 'Sync status reset successfully! You can now use the sync functionality again.';
+                    resultDiv.className = 'success';
+                } else {
+                    resultDiv.textContent = `Error: ${data.detail || 'Failed to reset sync status'}`;
+                    resultDiv.className = 'error';
+                }
+            } catch (error) {
+                resultDiv.textContent = `Error: ${error.message}`;
+                resultDiv.className = 'error';
+            }
+            
+            resultDiv.style.display = 'block';
+        });
+    </script>
+</body>
+</html>
