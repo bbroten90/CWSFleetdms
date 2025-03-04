@@ -29,7 +29,6 @@ const Login = () => {
 
     try {
       // EMERGENCY BYPASS: Hardcoded authentication for admin user
-      // This is a temporary solution to get you into the system
       if (credentials.username === 'admin' && credentials.password === 'admin123') {
         console.log('*** USING EMERGENCY BYPASS LOGIN ***');
         // Generate a mock token
@@ -52,21 +51,19 @@ const Login = () => {
       }
       
       // Regular authentication flow
-      // FormData format for OAuth2 compatibility
+      const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+      
+      console.log('Attempting login request to:', `${apiUrl}/token`);
+      
+      // Convert credentials to FormData for FastAPI OAuth compatibility
       const formData = new FormData();
       formData.append('username', credentials.username);
       formData.append('password', credentials.password);
-
+      
       // Convert FormData to URLSearchParams for proper encoding
       const searchParams = new URLSearchParams();
       searchParams.append('username', credentials.username);
       searchParams.append('password', credentials.password);
-      
-      // Use localhost:8000 directly if environment variable is not set
-      const apiUrl = process.env.REACT_APP_API_URL || 'http://localhost:8000';
-      
-      console.log('Attempting login request to:', `${apiUrl}/token`);
-      console.log('With credentials:', credentials.username, '(password hidden)');
       
       const response = await axios.post(
         `${apiUrl}/token`,
@@ -86,7 +83,7 @@ const Login = () => {
       localStorage.setItem('token', access_token);
       localStorage.setItem('token_type', token_type);
       
-      // Update auth state in the same structure as the bypass
+      // Update auth state
       login({
         access_token,
         token_type,
@@ -111,7 +108,7 @@ const Login = () => {
       <div className="w-full max-w-md">
         <div className="bg-white shadow-md rounded-lg px-8 pt-6 pb-8 mb-4">
           <div className="text-center mb-8">
-            <h2 className="text-3xl font-bold text-gray-800">CWS Fleet Management System</h2>
+            <h2 className="text-3xl font-bold text-gray-800">Fleet Management System</h2>
             <p className="text-gray-600 mt-2">Fleet Maintenance Management System</p>
           </div>
           
@@ -164,7 +161,7 @@ const Login = () => {
           </form>
         </div>
         <p className="text-center text-gray-500 text-xs">
-          &copy; 2025 CWS Fleet Management System. All rights reserved. | Built by Brent
+          &copy; 2025 Fleet Management System. All rights reserved.
         </p>
       </div>
     </div>

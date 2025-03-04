@@ -47,7 +47,6 @@ Write-Host "Backend server started as job: $($backendJob.Id)" -ForegroundColor G
 Write-Host "`n`n===== Installing Frontend Dependencies =====" -ForegroundColor Green
 Set-Location -Path "../fleet-dms-frontend"
 npm install
-npm install -D tailwindcss autoprefixer postcss
 
 # Start the frontend server
 Write-Host "`n`n===== Starting Frontend Server =====" -ForegroundColor Green

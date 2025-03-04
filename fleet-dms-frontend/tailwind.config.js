@@ -23,11 +23,5 @@ export default {
       },
     },
   },
-  plugins: [
-    // Commented out to fix PostCSS error
-    // Uncomment after UI is working
-    // require('@tailwindcss/forms'),
-    // require('@tailwindcss/typography'),
-    // require('@tailwindcss/aspect-ratio'),
-  ],
+  plugins: [],
 }
