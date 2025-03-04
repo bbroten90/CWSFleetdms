@@ -283,6 +283,20 @@ const apiService = {
       const response = await api.post(`/api/samsara/diagnostic/${codeId}/create-work-order`, data);
       return response.data;
     },
+    
+    getVehicleLocations: async (vehicleId: string, startTime: string, endTime: string) => {
+      const params = {
+        start_time: startTime,
+        end_time: endTime
+      };
+      const response = await api.get(`/api/samsara/vehicle/${vehicleId}/locations`, { params });
+      return response.data;
+    },
+    
+    getDiagnosticAlerts: async () => {
+      const response = await api.get('/api/samsara/dashboard/diagnostic-alerts');
+      return response.data;
+    },
   },
 };
 
