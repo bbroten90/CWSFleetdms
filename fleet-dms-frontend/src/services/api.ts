@@ -74,6 +74,8 @@ const apiService = {
       return response.data;
     },
   },
+
+  
   
   // Dashboard endpoints
   dashboard: {
@@ -177,6 +179,32 @@ const apiService = {
       const response = await api.post(`/api/work-orders/${id}/parts`, partData);
       return response.data;
     },
+    
+    // New methods from the sample code
+    getParts: async (id: string | number) => {
+      const response = await api.get(`/api/work-orders/${id}/parts`);
+      return response.data;
+    },
+    
+    removePart: async (workOrderId: string | number, partId: string | number) => {
+      const response = await api.delete(`/api/work-orders/${workOrderId}/parts/${partId}`);
+      return response.data;
+    },
+    
+    updatePart: async (workOrderId: string | number, partId: string | number, data: any) => {
+      const response = await api.put(`/api/work-orders/${workOrderId}/parts/${partId}`, data);
+      return response.data;
+    },
+    
+    complete: async (id: string | number) => {
+      const response = await api.post(`/api/work-orders/${id}/complete`);
+      return response.data;
+    },
+    
+    getUsageByWorkOrder: async (id: string | number) => {
+      const response = await api.get(`/api/work-orders/${id}/usage`);
+      return response.data;
+    },
   },
   
   // Parts inventory endpoints
@@ -208,6 +236,17 @@ const apiService = {
     
     adjustInventory: async (id: string | number, adjustmentData: any) => {
       const response = await api.post(`/api/parts/${id}/adjust`, adjustmentData);
+      return response.data;
+    },
+    
+    // New methods from the sample code
+    getCategories: async () => {
+      const response = await api.get('/api/parts/categories');
+      return response.data;
+    },
+    
+    getUsageStats: async (params = {}) => {
+      const response = await api.get('/api/parts/usage', { params });
       return response.data;
     },
   },
@@ -297,6 +336,34 @@ const apiService = {
       const response = await api.get('/api/samsara/dashboard/diagnostic-alerts');
       return response.data;
     },
+  },
+  
+  // New reports section from the sample code
+  reports: {
+    getInventoryValuation: async (params = {}) => {
+      const response = await api.get('/api/reports/inventory-valuation', { params });
+      return response.data;
+    },
+    
+    getLowStockItems: async () => {
+      const response = await api.get('/api/reports/low-stock');
+      return response.data;
+    },
+    
+    getPartUsageByDate: async (params: any) => {
+      const response = await api.get('/api/reports/part-usage-by-date', { params });
+      return response.data;
+    },
+    
+    getTopUsedParts: async (params = {}) => {
+      const response = await api.get('/api/reports/top-used-parts', { params });
+      return response.data;
+    },
+    
+    getInventoryMovement: async (params: any) => {
+      const response = await api.get('/api/reports/inventory-movement', { params });
+      return response.data;
+    }
   },
 };
 
