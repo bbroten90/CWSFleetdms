@@ -1,0 +1,58 @@
+# Git
+.git
+.gitignore
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# Environment files
+.env
+*.env
+venv/
+ENV/
+
+# Editor directories and files
+.idea
+.vscode
+*.swp
+*.swo
+
+# Testing
+.coverage
+htmlcov/
+.pytest_cache/
+.tox/
+
+# Local database files
+*.db
+*.sqlite3
+*.sqlite
+*.log
+
+# Documentation
+docs/
+*.md
+!README.md
+
+# Development files
+*.bak
+*.tmp

@@ -3,7 +3,7 @@ import logging
 from fastapi import FastAPI, Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordRequestForm
 from fastapi.middleware.cors import CORSMiddleware
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, text
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
 from datetime import datetime, timedelta
@@ -19,18 +19,19 @@ from auth import (
     ACCESS_TOKEN_EXPIRE_MINUTES,
     get_password_hash
 )
+from config import settings
 
-# Get Samsara API key from environment
-SAMSARA_API_KEY = os.getenv("SAMSARA_API_KEY")
+# Configure logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+
+# Get Samsara API key from settings
+SAMSARA_API_KEY = settings.SAMSARA_API_KEY
 if not SAMSARA_API_KEY:
     logger.warning("SAMSARA_API_KEY environment variable not set. Samsara integration will not work.")
 
 # Create tables
 models.Base.metadata.create_all(bind=engine)
-
-# Configure logging
-logging.basicConfig(level=logging.DEBUG)
-logger = logging.getLogger(__name__)
 
 # Initialize FastAPI app
 app = FastAPI(
@@ -39,10 +40,10 @@ app = FastAPI(
     version="1.0.0"
 )
 
-# Add CORS middleware
+# Add CORS middleware with settings
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # For development - restrict in production
+    allow_origins=settings.CORS_ORIGINS,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -53,14 +54,40 @@ app.include_router(vehicles.router)
 app.include_router(samsara.router)
 app.include_router(dashboard.router)
 
+# Health check endpoints for Google Cloud
+@app.get("/health")
+def health_check():
+    """
+    Health check endpoint for Google Cloud.
+    """
+    return {"status": "healthy"}
+
+@app.get("/readiness")
+async def readiness_check(db = Depends(get_db)):
+    """
+    Readiness check that verifies database connection.
+    """
+    try:
+        # Execute a simple query to check database connection
+        db.execute(text("SELECT 1"))
+        return {"status": "ready", "database": "connected"}
+    except Exception as e:
+        logger.error(f"Database readiness check failed: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail=f"Database connection failed: {str(e)}"
+        )
+
 @app.get("/")
 def read_root():
     """
     Root endpoint - Returns basic API information.
     """
     return {
-        "message": "Fleet DMS API is connected to PostgreSQL!",
+        "message": "Fleet DMS API is running",
         "docs_url": "/docs",
+        "health_check": "/health",
+        "readiness_check": "/readiness",
         "version": "1.0.0"
     }
 

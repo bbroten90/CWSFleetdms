@@ -1,0 +1,130 @@
+name: Deploy Fleet DMS
+
+on:
+  push:
+    branches: [ main, master ]
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Environment to deploy to'
+        required: true
+        default: 'dev'
+        type: choice
+        options:
+          - dev
+          - prod
+
+jobs:
+  build-and-deploy-backend:
+    name: Build and Deploy Backend
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+      
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.10'
+          cache: 'pip'
+      
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r backend/requirements.txt
+      
+      - name: Run tests
+        run: |
+          cd backend
+          python -m pytest -xvs
+        continue-on-error: true
+      
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v2
+      
+      - name: Login to Google Container Registry
+        if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master'
+        uses: docker/login-action@v2
+        with:
+          registry: gcr.io
+          username: _json_key
+          password: ${{ secrets.GCP_SA_KEY }}
+      
+      - name: Build and push backend Docker image
+        if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master'
+        uses: docker/build-push-action@v4
+        with:
+          context: ./backend
+          push: true
+          tags: gcr.io/${{ secrets.GCP_PROJECT_ID }}/fleet-dms-backend:latest
+      
+      - name: Deploy to Cloud Run
+        if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master'
+        uses: google-github-actions/deploy-cloudrun@v1
+        with:
+          service: fleet-dms-backend
+          image: gcr.io/${{ secrets.GCP_PROJECT_ID }}/fleet-dms-backend:latest
+          region: us-central1
+          credentials: ${{ secrets.GCP_SA_KEY }}
+          env_vars: |
+            DATABASE_URL=${{ secrets.DATABASE_URL }}
+            SECRET_KEY=${{ secrets.SECRET_KEY }}
+            SAMSARA_API_KEY=${{ secrets.SAMSARA_API_KEY }}
+            CORS_ORIGINS=${{ secrets.CORS_ORIGINS }}
+
+  build-and-deploy-frontend:
+    name: Build and Deploy Frontend
+    runs-on: ubuntu-latest
+    needs: build-and-deploy-backend
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+      
+      - name: Set up Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '16'
+          cache: 'npm'
+          cache-dependency-path: 'fleet-dms-frontend/package-lock.json'
+      
+      - name: Install dependencies
+        run: |
+          cd fleet-dms-frontend
+          npm ci
+      
+      - name: Build frontend
+        run: |
+          cd fleet-dms-frontend
+          npm run build
+        env:
+          VITE_API_URL: ${{ secrets.BACKEND_API_URL }}
+      
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v2
+      
+      - name: Login to Google Container Registry
+        if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master'
+        uses: docker/login-action@v2
+        with:
+          registry: gcr.io
+          username: _json_key
+          password: ${{ secrets.GCP_SA_KEY }}
+      
+      - name: Build and push frontend Docker image
+        if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master'
+        uses: docker/build-push-action@v4
+        with:
+          context: ./fleet-dms-frontend
+          push: true
+          tags: gcr.io/${{ secrets.GCP_PROJECT_ID }}/fleet-dms-frontend:latest
+      
+      - name: Deploy to Cloud Run
+        if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master'
+        uses: google-github-actions/deploy-cloudrun@v1
+        with:
+          service: fleet-dms-frontend
+          image: gcr.io/${{ secrets.GCP_PROJECT_ID }}/fleet-dms-frontend:latest
+          region: us-central1
+          credentials: ${{ secrets.GCP_SA_KEY }}

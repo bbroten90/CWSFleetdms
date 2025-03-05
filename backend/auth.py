@@ -6,8 +6,13 @@ from jose import JWTError, jwt
 from passlib.context import CryptContext
 import hashlib
 import logging
+import os
+import sys
 from sqlalchemy.orm import Session
 
+# Add parent directory to path so we can import config
+sys.path.insert(0, os.path.abspath(os.path.dirname(__file__)))
+from config import settings
 from App import models, schemas
 from App.database_module import get_db
 
@@ -15,10 +20,10 @@ from App.database_module import get_db
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-# JWT configuration
-SECRET_KEY = "YOUR_SECRET_KEY_CHANGE_THIS_IN_PRODUCTION"  # Change in production!
-ALGORITHM = "HS256"
-ACCESS_TOKEN_EXPIRE_MINUTES = 30
+# JWT configuration from settings
+SECRET_KEY = settings.SECRET_KEY
+ALGORITHM = settings.ALGORITHM
+ACCESS_TOKEN_EXPIRE_MINUTES = settings.ACCESS_TOKEN_EXPIRE_MINUTES
 
 # Simple password hashing using SHA-256 (for development only)
 # In production, use a proper password hashing library
