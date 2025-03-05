@@ -1,6 +1,13 @@
 import os
-from pydantic import BaseSettings, Field
 from typing import List, Optional
+
+try:
+    # Try importing from pydantic-settings (for Pydantic v2)
+    from pydantic_settings import BaseSettings
+    from pydantic import Field
+except ImportError:
+    # Fall back to old import path (for Pydantic v1)
+    from pydantic import BaseSettings, Field
 
 class Settings(BaseSettings):
     # Database

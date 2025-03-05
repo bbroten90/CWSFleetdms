@@ -3,6 +3,7 @@ from pydantic import BaseModel, Field, validator
 from typing import Optional, List, Union
 from datetime import datetime, date
 
+
 # Base schemas with shared attributes
 class VehicleBase(BaseModel):
     vin: str
@@ -88,6 +89,33 @@ class UserUpdate(BaseModel):
 class User(UserBase):
     user_id: int
     last_login: Optional[datetime] = None
+    created_at: datetime
+    updated_at: datetime
+    preferences: Optional[UserPreferences] = None
+
+    class Config:
+        orm_mode = True
+        from_attributes = True
+
+# User preferences
+class UserPreferencesBase(BaseModel):
+    theme: Optional[str] = "light"
+    dashboard_layout: Optional[str] = "default"
+    notifications_enabled: Optional[bool] = True
+    email_notifications_enabled: Optional[bool] = True
+
+class UserPreferencesCreate(UserPreferencesBase):
+    pass
+
+class UserPreferencesUpdate(BaseModel):
+    theme: Optional[str] = None
+    dashboard_layout: Optional[str] = None
+    notifications_enabled: Optional[bool] = None
+    email_notifications_enabled: Optional[bool] = None
+
+class UserPreferences(UserPreferencesBase):
+    preference_id: int
+    user_id: int
     created_at: datetime
     updated_at: datetime
 

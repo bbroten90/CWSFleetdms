@@ -2,6 +2,7 @@ import logging
 from fastapi import FastAPI
 from sqlalchemy import create_engine
 from sqlalchemy.orm import declarative_base, sessionmaker
+from App.Api.endpoints import user_settings
 
 # Enable logging
 logging.basicConfig(level=logging.DEBUG)

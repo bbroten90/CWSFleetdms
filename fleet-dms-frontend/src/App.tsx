@@ -9,8 +9,10 @@ import VehicleForm from './components/vehicles/VehicleForm';
 import WorkOrdersList from './components/work-orders/WorkOrdersList';
 import WorkOrderDetail from './components/work-orders/WorkOrderDetail';
 import WorkOrderForm from './components/work-orders/WorkOrderForm';
+import WorkOrderParts from './components/work-orders/WorkOrderParts';
 import PartsList from './components/parts/PartsList';
 import PartForm from './components/parts/PartForm';
+import PartUsageReports from './components/reports/PartUsageReports';
 import MaintenanceList from './components/maintenance/MaintenanceList';
 import MaintenanceForm from './components/maintenance/MaintenanceForm';
 import SamsaraIntegration from './components/samsara/SamsaraIntegration';
@@ -129,7 +131,7 @@ function App() {
               <Route index element={<VehiclesList />} />
               <Route path=":id" element={<VehicleDetail />} />
               <Route path="new" element={<VehicleForm />} />
-              <Route path=":id/edit" element={<VehicleForm isEditing />} />
+              <Route path=":id/edit" element={<VehicleForm />} />
             </Route>
             
             {/* Work Orders routes */}
@@ -137,20 +139,22 @@ function App() {
               <Route index element={<WorkOrdersList />} />
               <Route path=":id" element={<WorkOrderDetail />} />
               <Route path="new" element={<WorkOrderForm />} />
-              <Route path=":id/edit" element={<WorkOrderForm isEditing />} />
+              <Route path=":id/edit" element={<WorkOrderForm />} />
+              <Route path=":workOrderId/parts" element={<WorkOrderParts />} />
             </Route>
             
             {/* Parts routes */}
             <Route path="parts">
               <Route index element={<PartsList />} />
-              <Route path=":id" element={<PartForm isEditing />} />
+              <Route path=":id" element={<PartForm />} />
               <Route path="new" element={<PartForm />} />
+              <Route path="reports" element={<PartUsageReports />} />
             </Route>
             
             {/* Maintenance routes */}
             <Route path="maintenance">
               <Route index element={<MaintenanceList />} />
-              <Route path=":id" element={<MaintenanceForm isEditing />} />
+              <Route path=":id" element={<MaintenanceForm />} />
               <Route path="new" element={<MaintenanceForm />} />
             </Route>
             

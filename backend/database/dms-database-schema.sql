@@ -225,3 +225,21 @@ CREATE INDEX idx_work_orders_status ON work_orders(status);
 CREATE INDEX idx_work_order_tasks_work_order_id ON work_order_tasks(work_order_id);
 CREATE INDEX idx_diagnostic_codes_vehicle_id ON diagnostic_codes(vehicle_id);
 CREATE INDEX idx_diagnostic_codes_code ON diagnostic_codes(code);
+
+-- Create user_preferences table
+CREATE TABLE user_preferences (
+    preference_id SERIAL PRIMARY KEY,
+    user_id INTEGER REFERENCES users(user_id) UNIQUE,
+    theme VARCHAR(20) DEFAULT 'light',
+    dashboard_layout VARCHAR(20) DEFAULT 'default',
+    notifications_enabled BOOLEAN DEFAULT TRUE,
+    email_notifications_enabled BOOLEAN DEFAULT TRUE,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Create index for faster lookups
+CREATE INDEX idx_user_preferences_user_id ON user_preferences(user_id);
+
+-- Add a comment to the table
+COMMENT ON TABLE user_preferences IS 'Stores user interface and notification preferences';

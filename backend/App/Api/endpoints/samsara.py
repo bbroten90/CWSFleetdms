@@ -12,12 +12,13 @@ from App import models
 from App import schemas
 from App.database_module import get_db
 from auth import get_current_active_user, check_manager
+from config import settings
 
-# Get API key from environment variable
-SAMSARA_API_KEY = os.getenv("SAMSARA_API_KEY")
-# If not set in environment, log a warning
+# Get API key from settings
+SAMSARA_API_KEY = settings.SAMSARA_API_KEY
+# If not set in settings, log a warning
 if not SAMSARA_API_KEY:
-    logging.warning("SAMSARA_API_KEY environment variable not set. Samsara integration will not work.")
+    logging.warning("SAMSARA_API_KEY not set in settings. Samsara integration will not work.")
 SAMSARA_API_BASE_URL = "https://api.samsara.com"
 
 # Configure logging

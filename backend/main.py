@@ -11,8 +11,12 @@ import os
 from App import models
 from App.database_module import get_db, engine
 from App import schemas
-from App.Api.endpoints import vehicles, samsara, dashboard
+from App.Api.endpoints import vehicles, samsara, dashboard, user_settings
 from dotenv import load_dotenv
+
+# Load environment variables from .env file, overriding existing ones
+load_dotenv(override=True)
+
 from auth import (
     authenticate_user,
     create_access_token,
@@ -53,6 +57,7 @@ app.add_middleware(
 app.include_router(vehicles.router)
 app.include_router(samsara.router)
 app.include_router(dashboard.router)
+app.include_router(user_settings.router)
 
 # Health check endpoints for Google Cloud
 @app.get("/health")

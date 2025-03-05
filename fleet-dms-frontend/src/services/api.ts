@@ -338,7 +338,40 @@ const apiService = {
     },
   },
   
-  // New reports section from the sample code
+  // User settings endpoints
+  userSettings: {
+    getProfile: async () => {
+      const response = await api.get('/api/user-settings/profile');
+      return response.data;
+    },
+    
+    updateProfile: async (profileData: any) => {
+      const response = await api.put('/api/user-settings/profile', profileData);
+      return response.data;
+    },
+    
+    getPreferences: async () => {
+      const response = await api.get('/api/user-settings/preferences');
+      return response.data;
+    },
+    
+    updatePreferences: async (preferencesData: any) => {
+      const response = await api.put('/api/user-settings/preferences', preferencesData);
+      return response.data;
+    },
+    
+    changePassword: async (passwordData: any) => {
+      const response = await api.put('/api/user-settings/change-password', passwordData);
+      return response.data;
+    },
+    
+    getActivityLogs: async (params = {}) => {
+      const response = await api.get('/api/user-settings/activity', { params });
+      return response.data;
+    }
+  },
+  
+  // Reports endpoints
   reports: {
     getInventoryValuation: async (params = {}) => {
       const response = await api.get('/api/reports/inventory-valuation', { params });

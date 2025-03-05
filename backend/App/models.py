@@ -285,6 +285,7 @@ class User(Base):
     last_login = Column(DateTime)
     created_at = Column(DateTime, default=func.now())
     updated_at = Column(DateTime, default=func.now(), onupdate=func.now())
+    preferences = relationship("UserPreferences", back_populates="user", uselist=False)
     
     # Relationships
     activity_logs = relationship("ActivityLog", back_populates="user")
@@ -305,6 +306,7 @@ class ActivityLog(Base):
     
     # Relationships
     user = relationship("User", back_populates="activity_logs")
+    user = relationship("User", back_populates="preferences")
 
 # System configuration model
 class SystemConfig(Base):
@@ -316,3 +318,19 @@ class SystemConfig(Base):
     description = Column(Text)
     created_at = Column(DateTime, default=func.now())
     updated_at = Column(DateTime, default=func.now(), onupdate=func.now())
+
+# Add the UserPreferences model to models.py
+class UserPreferences(Base):
+    __tablename__ = "user_preferences"
+    
+    preference_id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.user_id"), unique=True)
+    theme = Column(String(20), default="light")
+    dashboard_layout = Column(String(20), default="default")
+    notifications_enabled = Column(Boolean, default=True)
+    email_notifications_enabled = Column(Boolean, default=True)
+    created_at = Column(DateTime, default=func.now())
+    updated_at = Column(DateTime, default=func.now(), onupdate=func.now())
+    
+   
+

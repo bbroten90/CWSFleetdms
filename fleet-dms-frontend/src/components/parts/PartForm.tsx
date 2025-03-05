@@ -1,113 +1,210 @@
-import React, { useState } from 'react';
-import { Link, useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, Save } from 'lucide-react';
+// src/components/parts/PartForm.tsx
+import React, { useState, useEffect } from 'react';
+import { useParams, useNavigate } from 'react-router-dom';
+import { Save, ArrowLeft, Trash2, AlertTriangle } from 'lucide-react';
+import apiService from '../../services/api';
 
-// Sample part data for editing form
-const samplePart = {
-  id: 1,
-  part_number: 'EGR-123',
-  name: 'EGR Valve',
-  description: 'Exhaust Gas Recirculation valve for diesel engines',
-  category: 'Engine',
-  manufacturer: 'OEM Parts',
-  location: 'Shelf A1',
-  quantity: 5,
-  unit_cost: 120.99,
-  reorder_level: 2,
-  notes: 'Compatible with Freightliner Cascadia 2018-2023 models'
-};
-
-interface PartFormProps {
-  isEditing?: boolean;
+// Interface for part data
+interface PartFormData {
+  part_number: string;
+  name: string;
+  category?: string;
+  description?: string;
+  quantity_on_hand: number;
+  minimum_quantity: number;
+  unit_cost: number;
+  location?: string;
+  manufacturer?: string;
 }
 
-const PartForm: React.FC<PartFormProps> = ({ isEditing = false }) => {
-  const { id } = useParams<{ id: string }>();
+const PartForm: React.FC = () => {
+  const { partId } = useParams<{ partId: string }>();
   const navigate = useNavigate();
+  const isEditMode = !!partId;
   
-  const [formData, setFormData] = useState(
-    isEditing ? samplePart : {
-      part_number: '',
-      name: '',
-      description: '',
-      category: '',
-      manufacturer: '',
-      location: '',
-      quantity: 0,
-      unit_cost: 0,
-      reorder_level: 0,
-      notes: ''
+  // State
+  const [formData, setFormData] = useState<PartFormData>({
+    part_number: '',
+    name: '',
+    category: '',
+    description: '',
+    quantity_on_hand: 0,
+    minimum_quantity: 0,
+    unit_cost: 0,
+    location: '',
+    manufacturer: ''
+  });
+  
+  const [categories, setCategories] = useState<string[]>([]);
+  const [loading, setLoading] = useState(isEditMode);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  
+  // Load data if in edit mode
+  useEffect(() => {
+    const fetchData = async () => {
+      if (isEditMode) {
+        try {
+          const part = await apiService.parts.getById(parseInt(partId as string));
+          setFormData(part);
+        } catch (err) {
+          console.error('Error fetching part:', err);
+          setError('Failed to load part data. Please try again later.');
+        } finally {
+          setLoading(false);
+        }
+      }
+    };
+    
+    fetchData();
+    fetchCategories();
+  }, [isEditMode, partId]);
+  
+  // Fetch categories
+  const fetchCategories = async () => {
+    try {
+      const response = await apiService.parts.getCategories();
+      setCategories(response);
+    } catch (err) {
+      console.error('Error fetching categories:', err);
     }
-  );
-  
-  // Categories for dropdown
-  const categories = [
-    'Engine',
-    'Transmission',
-    'Brakes',
-    'Suspension',
-    'Electrical',
-    'Cooling',
-    'Filters',
-    'Belts',
-    'Other'
-  ];
-  
-  // Shelf locations for dropdown
-  const locations = [
-    'Shelf A1', 'Shelf A2', 'Shelf A3', 'Shelf A4',
-    'Shelf B1', 'Shelf B2', 'Shelf B3', 'Shelf B4',
-    'Shelf C1', 'Shelf C2', 'Shelf C3', 'Shelf C4',
-    'Shelf D1', 'Shelf D2', 'Shelf D3', 'Shelf D4',
-    'Shelf E1', 'Shelf E2', 'Shelf E3', 'Shelf E4',
-    'Shelf F1', 'Shelf F2', 'Shelf F3', 'Shelf F4'
-  ];
-  
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
-    const { name, value, type } = e.target;
-    
-    // Convert number inputs to actual numbers
-    const numberFields = ['quantity', 'unit_cost', 'reorder_level'];
-    const parsedValue = numberFields.includes(name) && type === 'number'
-      ? parseFloat(value) || 0
-      : value;
-    
-    setFormData({
-      ...formData,
-      [name]: parsedValue
-    });
   };
   
-  const handleSubmit = (e: React.FormEvent) => {
+  // Handle form changes
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
+    const { name, value, type } = e.target;
+    
+    // Parse numeric values
+    if (type === 'number') {
+      setFormData({
+        ...formData,
+        [name]: value === '' ? '' : parseFloat(value)
+      });
+    } else {
+      setFormData({
+        ...formData,
+        [name]: value
+      });
+    }
+  };
+  
+  // Handle form submission
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    // Validate basic required fields
-    if (!formData.part_number || !formData.name || !formData.category) {
-      alert('Please fill in all required fields (Part Number, Name, and Category)');
+    // Validation
+    if (!formData.part_number.trim()) {
+      setError('Part number is required');
       return;
     }
     
-    // In a real app, send data to API here
-    console.log('Saving part:', formData);
+    if (!formData.name.trim()) {
+      setError('Part name is required');
+      return;
+    }
     
-    // Redirect back to parts list or detail
-    navigate('/parts');
+    if (formData.quantity_on_hand < 0) {
+      setError('Quantity on hand cannot be negative');
+      return;
+    }
+    
+    if (formData.minimum_quantity < 0) {
+      setError('Minimum quantity cannot be negative');
+      return;
+    }
+    
+    if (formData.unit_cost < 0) {
+      setError('Unit cost cannot be negative');
+      return;
+    }
+    
+    setSaving(true);
+    
+    try {
+      if (isEditMode) {
+        // Update existing part
+        await apiService.parts.update(parseInt(partId as string), formData);
+      } else {
+        // Create new part
+        await apiService.parts.create(formData);
+      }
+      
+      // Navigate back to parts list
+      navigate('/parts');
+    } catch (err) {
+      console.error('Error saving part:', err);
+      setError('Failed to save part. Please try again.');
+      setSaving(false);
+    }
   };
+  
+  // Handle delete
+  const handleDelete = async () => {
+    if (!isEditMode) return;
+    
+    if (!window.confirm('Are you sure you want to delete this part? This action cannot be undone.')) {
+      return;
+    }
+    
+    try {
+      setSaving(true);
+      await apiService.parts.delete(parseInt(partId as string));
+      navigate('/parts');
+    } catch (err) {
+      console.error('Error deleting part:', err);
+      setError('Failed to delete part. It may be in use in work orders or have inventory transactions.');
+      setSaving(false);
+    }
+  };
+  
+  if (loading) {
+    return (
+      <div className="flex justify-center items-center h-64">
+        <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-blue-500"></div>
+      </div>
+    );
+  }
   
   return (
     <div className="container mx-auto px-4 py-6">
-      <div className="mb-6">
-        <Link to="/parts" className="flex items-center text-blue-600 hover:text-blue-800">
-          <ArrowLeft className="h-4 w-4 mr-1" />
-          Back to Parts Inventory
-        </Link>
+      <div className="flex justify-between items-center mb-6">
+        <h1 className="text-2xl font-bold">
+          {isEditMode ? `Edit Part: ${formData.name}` : 'Add New Part'}
+        </h1>
+        <div className="flex space-x-2">
+          <button
+            onClick={() => navigate('/parts')}
+            className="flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50"
+          >
+            <ArrowLeft className="h-4 w-4 mr-2" />
+            Back to Parts
+          </button>
+          
+          {isEditMode && (
+            <button
+              onClick={handleDelete}
+              disabled={saving}
+              className="flex items-center px-4 py-2 border border-red-300 rounded-md shadow-sm text-sm font-medium text-red-700 bg-white hover:bg-red-50"
+            >
+              <Trash2 className="h-4 w-4 mr-2" />
+              Delete Part
+            </button>
+          )}
+        </div>
       </div>
       
-      <h1 className="text-2xl font-bold mb-6">{isEditing ? 'Edit Part' : 'Add New Part'}</h1>
+      {/* Error message */}
+      {error && (
+        <div className="bg-red-100 border-l-4 border-red-500 text-red-700 p-4 mb-6 flex items-start">
+          <AlertTriangle className="h-5 w-5 mr-2 flex-shrink-0 mt-0.5" />
+          <p>{error}</p>
+        </div>
+      )}
       
-      <form onSubmit={handleSubmit} className="bg-white rounded-lg shadow p-6">
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          {/* Part Identification */}
+      {/* Part Form */}
+      <form onSubmit={handleSubmit} className="bg-white shadow rounded-lg p-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+          {/* Part Number */}
           <div>
             <label htmlFor="part_number" className="block text-sm font-medium text-gray-700 mb-1">
               Part Number <span className="text-red-500">*</span>
@@ -119,14 +216,14 @@ const PartForm: React.FC<PartFormProps> = ({ isEditing = false }) => {
               value={formData.part_number}
               onChange={handleChange}
               className="w-full rounded-md border-gray-300 shadow-sm px-4 py-2 border focus:ring-blue-500 focus:border-blue-500"
-              placeholder="Part number or SKU"
               required
             />
           </div>
           
+          {/* Part Name */}
           <div>
             <label htmlFor="name" className="block text-sm font-medium text-gray-700 mb-1">
-              Name <span className="text-red-500">*</span>
+              Part Name <span className="text-red-500">*</span>
             </label>
             <input
               type="text"
@@ -135,31 +232,35 @@ const PartForm: React.FC<PartFormProps> = ({ isEditing = false }) => {
               value={formData.name}
               onChange={handleChange}
               className="w-full rounded-md border-gray-300 shadow-sm px-4 py-2 border focus:ring-blue-500 focus:border-blue-500"
-              placeholder="Part name"
               required
             />
           </div>
           
-          {/* Category and Manufacturer */}
+          {/* Category */}
           <div>
             <label htmlFor="category" className="block text-sm font-medium text-gray-700 mb-1">
-              Category <span className="text-red-500">*</span>
+              Category
             </label>
-            <select
-              id="category"
-              name="category"
-              value={formData.category}
-              onChange={handleChange}
-              className="w-full rounded-md border-gray-300 shadow-sm px-4 py-2 border focus:ring-blue-500 focus:border-blue-500"
-              required
-            >
-              <option value="">Select Category</option>
-              {categories.map(category => (
-                <option key={category} value={category}>{category}</option>
-              ))}
-            </select>
+            <div className="relative">
+              <select
+                id="category"
+                name="category"
+                value={formData.category || ''}
+                onChange={handleChange}
+                className="w-full rounded-md border-gray-300 shadow-sm px-4 py-2 border focus:ring-blue-500 focus:border-blue-500"
+              >
+                <option value="">Select a category</option>
+                {categories.map(category => (
+                  <option key={category} value={category}>
+                    {category}
+                  </option>
+                ))}
+                <option value="other">Other</option>
+              </select>
+            </div>
           </div>
           
+          {/* Manufacturer */}
           <div>
             <label htmlFor="manufacturer" className="block text-sm font-medium text-gray-700 mb-1">
               Manufacturer
@@ -168,10 +269,79 @@ const PartForm: React.FC<PartFormProps> = ({ isEditing = false }) => {
               type="text"
               id="manufacturer"
               name="manufacturer"
-              value={formData.manufacturer}
+              value={formData.manufacturer || ''}
               onChange={handleChange}
               className="w-full rounded-md border-gray-300 shadow-sm px-4 py-2 border focus:ring-blue-500 focus:border-blue-500"
-              placeholder="Brand or manufacturer"
+            />
+          </div>
+          
+          {/* Quantity on Hand */}
+          <div>
+            <label htmlFor="quantity_on_hand" className="block text-sm font-medium text-gray-700 mb-1">
+              Quantity on Hand <span className="text-red-500">*</span>
+            </label>
+            <input
+              type="number"
+              id="quantity_on_hand"
+              name="quantity_on_hand"
+              value={formData.quantity_on_hand}
+              onChange={handleChange}
+              min="0"
+              step="1"
+              className="w-full rounded-md border-gray-300 shadow-sm px-4 py-2 border focus:ring-blue-500 focus:border-blue-500"
+              required
+            />
+          </div>
+          
+          {/* Minimum Quantity */}
+          <div>
+            <label htmlFor="minimum_quantity" className="block text-sm font-medium text-gray-700 mb-1">
+              Minimum Quantity <span className="text-red-500">*</span>
+            </label>
+            <input
+              type="number"
+              id="minimum_quantity"
+              name="minimum_quantity"
+              value={formData.minimum_quantity}
+              onChange={handleChange}
+              min="0"
+              step="1"
+              className="w-full rounded-md border-gray-300 shadow-sm px-4 py-2 border focus:ring-blue-500 focus:border-blue-500"
+              required
+            />
+          </div>
+          
+          {/* Unit Cost */}
+          <div>
+            <label htmlFor="unit_cost" className="block text-sm font-medium text-gray-700 mb-1">
+              Unit Cost ($) <span className="text-red-500">*</span>
+            </label>
+            <input
+              type="number"
+              id="unit_cost"
+              name="unit_cost"
+              value={formData.unit_cost}
+              onChange={handleChange}
+              min="0"
+              step="0.01"
+              className="w-full rounded-md border-gray-300 shadow-sm px-4 py-2 border focus:ring-blue-500 focus:border-blue-500"
+              required
+            />
+          </div>
+          
+          {/* Location */}
+          <div>
+            <label htmlFor="location" className="block text-sm font-medium text-gray-700 mb-1">
+              Storage Location
+            </label>
+            <input
+              type="text"
+              id="location"
+              name="location"
+              value={formData.location || ''}
+              onChange={handleChange}
+              className="w-full rounded-md border-gray-300 shadow-sm px-4 py-2 border focus:ring-blue-500 focus:border-blue-500"
+              placeholder="e.g., Shelf A-12, Bin 3, Warehouse B"
             />
           </div>
           
@@ -183,129 +353,23 @@ const PartForm: React.FC<PartFormProps> = ({ isEditing = false }) => {
             <textarea
               id="description"
               name="description"
-              value={formData.description}
+              value={formData.description || ''}
               onChange={handleChange}
               rows={3}
               className="w-full rounded-md border-gray-300 shadow-sm px-4 py-2 border focus:ring-blue-500 focus:border-blue-500"
-              placeholder="Detailed description of the part"
-            />
-          </div>
-          
-          {/* Inventory Information */}
-          <div>
-            <label htmlFor="location" className="block text-sm font-medium text-gray-700 mb-1">
-              Storage Location
-            </label>
-            <select
-              id="location"
-              name="location"
-              value={formData.location}
-              onChange={handleChange}
-              className="w-full rounded-md border-gray-300 shadow-sm px-4 py-2 border focus:ring-blue-500 focus:border-blue-500"
-            >
-              <option value="">Select Location</option>
-              {locations.map(location => (
-                <option key={location} value={location}>{location}</option>
-              ))}
-            </select>
-          </div>
-          
-          <div>
-            <label htmlFor="quantity" className="block text-sm font-medium text-gray-700 mb-1">
-              Quantity in Stock
-            </label>
-            <input
-              type="number"
-              id="quantity"
-              name="quantity"
-              value={formData.quantity}
-              onChange={handleChange}
-              min="0"
-              className="w-full rounded-md border-gray-300 shadow-sm px-4 py-2 border focus:ring-blue-500 focus:border-blue-500"
-            />
-          </div>
-          
-          <div>
-            <label htmlFor="unit_cost" className="block text-sm font-medium text-gray-700 mb-1">
-              Unit Cost ($)
-            </label>
-            <input
-              type="number"
-              id="unit_cost"
-              name="unit_cost"
-              value={formData.unit_cost}
-              onChange={handleChange}
-              min="0"
-              step="0.01"
-              className="w-full rounded-md border-gray-300 shadow-sm px-4 py-2 border focus:ring-blue-500 focus:border-blue-500"
-            />
-          </div>
-          
-          <div>
-            <label htmlFor="reorder_level" className="block text-sm font-medium text-gray-700 mb-1">
-              Reorder Level
-            </label>
-            <input
-              type="number"
-              id="reorder_level"
-              name="reorder_level"
-              value={formData.reorder_level}
-              onChange={handleChange}
-              min="0"
-              className="w-full rounded-md border-gray-300 shadow-sm px-4 py-2 border focus:ring-blue-500 focus:border-blue-500"
-              placeholder="Minimum stock level before reordering"
-            />
-          </div>
-          
-          {/* Additional Notes */}
-          <div className="md:col-span-2">
-            <label htmlFor="notes" className="block text-sm font-medium text-gray-700 mb-1">
-              Additional Notes
-            </label>
-            <textarea
-              id="notes"
-              name="notes"
-              value={formData.notes}
-              onChange={handleChange}
-              rows={3}
-              className="w-full rounded-md border-gray-300 shadow-sm px-4 py-2 border focus:ring-blue-500 focus:border-blue-500"
-              placeholder="Any additional information about the part (compatibility, etc.)"
             />
           </div>
         </div>
         
-        {/* Low stock warning */}
-        {formData.quantity <= formData.reorder_level && formData.quantity > 0 && (
-          <div className="mt-6 p-4 bg-yellow-50 border border-yellow-200 rounded-md">
-            <p className="text-yellow-800 text-sm">
-              <strong>Warning:</strong> Current quantity is at or below the reorder level.
-            </p>
-          </div>
-        )}
-        
-        {/* Out of stock warning */}
-        {formData.quantity === 0 && (
-          <div className="mt-6 p-4 bg-red-50 border border-red-200 rounded-md">
-            <p className="text-red-800 text-sm">
-              <strong>Alert:</strong> This part is currently out of stock.
-            </p>
-          </div>
-        )}
-        
-        {/* Submit Buttons */}
-        <div className="mt-8 flex justify-end space-x-4">
-          <Link 
-            to="/parts"
-            className="px-4 py-2 bg-gray-200 text-gray-800 rounded hover:bg-gray-300 transition"
-          >
-            Cancel
-          </Link>
+        {/* Form Actions */}
+        <div className="flex justify-end">
           <button
             type="submit"
-            className="flex items-center px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 transition"
+            disabled={saving}
+            className="flex items-center bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 transition disabled:bg-blue-300"
           >
             <Save className="h-4 w-4 mr-2" />
-            {isEditing ? 'Update Part' : 'Add Part'}
+            {saving ? 'Saving...' : 'Save Part'}
           </button>
         </div>
       </form>

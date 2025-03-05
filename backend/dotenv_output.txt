@@ -1,0 +1,7 @@
+Before loading .env file:
+SAMSARA_API_KEY=C:\Users\bbrot\Documents\CWS_App\CWS_App_Backend\dispatch_dashboard\CWSApp\frontend
+
+Loading .env file...
+
+After loading .env file:
+SAMSARA_API_KEY=samsara_api_X7374IGt8UXRrbGOGhCFErfC6NGh6d
